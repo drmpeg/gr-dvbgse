@@ -62,8 +62,7 @@ namespace gr {
       alternate = TRUE;
       nibble = TRUE;
       frame_size = framesize;
-      packet_count = 0;
-      next_packet_valid = FALSE;
+      packet_fragmented = FALSE;
       frag_id = 1;
       BBHeader *f = &m_format[0].bb_header;
       if (framesize == FECFRAME_NORMAL) {
@@ -309,7 +308,7 @@ namespace gr {
       }
 
       strcpy(dev, DEFAULT_IF);
-      descr = pcap_open_live(dev, BUFSIZ, 0, -1, errbuf);
+      descr = pcap_open_live(dev, 65536, 0, -1, errbuf);
       if (descr == NULL) {
         std::stringstream s;
         s << "Error calling pcap_open_live(): " << errbuf << std::endl;
@@ -552,13 +551,14 @@ namespace gr {
     {
       unsigned char *out = (unsigned char *) output_items[0];
       unsigned int offset = 0;
-      unsigned int padding, bits, temp_offset, header_offset;
+      unsigned int padding, bits, first_offset;
       struct pcap_pkthdr hdr;
       struct ether_header *eptr;
       unsigned char *ptr;
       unsigned char total_length[2];
       int length;
       int crc32;
+      bool maxsize;
 
       for (int i = 0; i < noutput_items; i += kbch) {
         if (fec_block == 0 && inband_type_b == TRUE) {
@@ -568,17 +568,13 @@ namespace gr {
           padding = 0;
         }
         add_bbheader(&out[offset], count, padding, TRUE);
-        temp_offset = offset;
+        first_offset = offset;
         offset = offset + 80;
         while (1) {
-          if (packet_count == 0) {
-            if (next_packet_valid == FALSE) {
-              packet = pcap_next(descr, &hdr);
-            }
+          if (packet_fragmented == FALSE) {
+            packet = pcap_next(descr, &hdr);
             if (packet != NULL) {
-              next_packet_valid = FALSE;
-              memcpy(packet_save, packet, hdr.len);
-              if ((hdr.len - sizeof(struct ether_header) + HEADER_SIZE + ETHER_TYPE_LEN + ETHER_ADDR_LEN) <= ((kbch - (offset - temp_offset) - padding) / 8)) {
+              if (((hdr.len - sizeof(struct ether_header) + HEADER_SIZE + ETHER_TYPE_LEN + ETHER_ADDR_LEN) <= ((kbch - (offset - first_offset) - padding) / 8)) && ((hdr.len - sizeof(struct ether_header) + ETHER_TYPE_LEN + ETHER_ADDR_LEN) < 4096)) {
                 /* PDU start, no fragmentation */
                 out[offset++] = 1;    /* Start_Indicator = 1 */
                 out[offset++] = 1;    /* End_Indicator = 1 */
@@ -590,7 +586,7 @@ namespace gr {
                 for (int n = 11; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
-                eptr = (struct ether_header *)packet_save;
+                eptr = (struct ether_header *)packet;
                 /* Protocol_Type */
                 ptr = (unsigned char *)&eptr->ether_type;
                 for (int j = 0; j < ETHER_TYPE_LEN; j++) {
@@ -608,28 +604,13 @@ namespace gr {
                   }
                 }
                 /* GSE_data_byte */
-                ptr = (unsigned char *)(packet_save + sizeof(struct ether_header));
+                ptr = (unsigned char *)(packet + sizeof(struct ether_header));
                 for (unsigned int j = 0; j < hdr.len - sizeof(struct ether_header); j++) {
                   bits = *ptr++;
                   for (int n = 7; n >= 0; n--) {
                     out[offset++] = bits & (1 << n) ? 1 : 0;
                   }
                 }
-                if (offset == (i + kbch) - padding) {
-                  break;
-                }
-                out[offset++] = 0;    /* Start_Indicator = 0 */
-                out[offset++] = 0;    /* End_Indicator = 0 */
-                bits = 0x0;           /* Label_Type_Indicator = 00 */
-                for (int n = 1; n >= 0; n--) {
-                  out[offset++] = bits & (1 << n) ? 1 : 0;
-                }
-                /* Padding_bits */
-                for (int n = 3; n >= 0; n--) {
-                  out[offset++] = bits & (1 << n) ? 1 : 0;
-                }
-                memset(&out[offset], 0, kbch - (offset - temp_offset) - padding);
-                offset += kbch - (offset - temp_offset) - padding;
                 if (offset == (i + kbch) - padding) {
                   break;
                 }
@@ -642,7 +623,14 @@ namespace gr {
                 for (int n = 1; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
-                bits = (kbch - ((offset + GSE_LENGTH_SIZE) - temp_offset) - padding) / 8;    /* GSE_Length */
+                bits = (kbch - ((offset + GSE_LENGTH_SIZE) - first_offset) - padding) / 8;    /* GSE_Length */
+                if (bits >= MAX_GSE_LENGTH) {
+                  bits = MAX_GSE_LENGTH - 1;
+                  maxsize = TRUE;
+                }
+                else {
+                  maxsize = FALSE;
+                }
                 for (int n = 11; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
@@ -657,7 +645,7 @@ namespace gr {
                 for (int n = 15; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
-                eptr = (struct ether_header *)packet_save;
+                eptr = (struct ether_header *)packet;
                 /* Protocol_Type */
                 ptr = (unsigned char *)&eptr->ether_type;
                 crc32_partial = crc32_calc_partial(ptr, ETHER_TYPE_LEN, crc32_partial);
@@ -677,8 +665,13 @@ namespace gr {
                   }
                 }
                 /* GSE_data_byte */
-                ptr = (unsigned char *)(packet_save + sizeof(struct ether_header));
-                length = (kbch - (offset - temp_offset) - padding) / 8;
+                ptr = (unsigned char *)(packet + sizeof(struct ether_header));
+                if (maxsize == TRUE) {
+                  length = MAX_GSE_LENGTH - 1 - HEADER_SIZE - FRAG_ID_SIZE - TOTAL_LENGTH_SIZE - ETHER_TYPE_LEN - ETHER_ADDR_LEN;
+                }
+                else {
+                  length = (kbch - (offset - first_offset) - padding) / 8;
+                }
                 crc32_partial = crc32_calc_partial(ptr, length, crc32_partial);
                 packet_length = hdr.len - sizeof(struct ether_header) - length;
                 for (int j = 0; j < length; j++) {
@@ -688,57 +681,93 @@ namespace gr {
                   }
                 }
                 packet_ptr = ptr;
-                if ((hdr.len - sizeof(struct ether_header)) > ((((kbch - 80 - padding) / 8) - (HEADER_SIZE + FRAG_ID_SIZE + TOTAL_LENGTH_SIZE + ETHER_TYPE_LEN + ETHER_ADDR_LEN)) + (((kbch - 80) / 8) - (HEADER_SIZE + FRAG_ID_SIZE + sizeof(crc32))))) {
-                  packet_count = ((hdr.len - (sizeof(struct ether_header)) - (((kbch - 80 - padding) / 8) - (HEADER_SIZE + FRAG_ID_SIZE + TOTAL_LENGTH_SIZE + ETHER_TYPE_LEN + ETHER_ADDR_LEN + sizeof(crc32))))) / (((kbch - 80) / 8) - (HEADER_SIZE + FRAG_ID_SIZE)) + 1;
-                }
-                else {
-                  packet_count = 1;
-                }
-                printf("packet_count = %d, %d, %d, %d\n", packet_count, (int)(hdr.len - sizeof(struct ether_header)), (int)((((kbch - 80 - padding) / 8) - (HEADER_SIZE + FRAG_ID_SIZE + TOTAL_LENGTH_SIZE + ETHER_TYPE_LEN + ETHER_ADDR_LEN)) + (((kbch - 80) / 8) - (HEADER_SIZE + FRAG_ID_SIZE + sizeof(crc32)))), i);
+                packet_fragmented = TRUE;
                 if (offset == (i + kbch) - padding) {
                   break;
                 }
               }
             }
           }
-          if (packet_count != 0) {
-            packet_count--;
-            if (packet_count == 0) {
-              packet = pcap_next(descr, &hdr);
-              if (packet == NULL) {
-                /* PDU end, no concatenation */
-                out[offset++] = 0;    /* Start_Indicator = 0 */
-                out[offset++] = 1;    /* End_Indicator = 1 */
-                bits = 0x3;           /* Label_Type_Indicator = re-use */
-                for (int n = 1; n >= 0; n--) {
-                  out[offset++] = bits & (1 << n) ? 1 : 0;
-                }
-                bits = FRAG_ID_SIZE + packet_length + sizeof(crc32);    /* GSE_Length */
-                for (int n = 11; n >= 0; n--) {
-                  out[offset++] = bits & (1 << n) ? 1 : 0;
-                }
-                bits = frag_id;    /* Frag_ID */
-                frag_id++;
+          if (packet_fragmented == TRUE) {
+            if (((packet_length + HEADER_SIZE + FRAG_ID_SIZE + sizeof(crc32)) <= ((kbch - (offset - first_offset) - padding) / 8)) && ((packet_length + HEADER_SIZE + FRAG_ID_SIZE + sizeof(crc32)) < 4096)) {
+              /* PDU end */
+              out[offset++] = 0;    /* Start_Indicator = 0 */
+              out[offset++] = 1;    /* End_Indicator = 1 */
+              bits = 0x3;           /* Label_Type_Indicator = re-use */
+              for (int n = 1; n >= 0; n--) {
+                out[offset++] = bits & (1 << n) ? 1 : 0;
+              }
+              bits = FRAG_ID_SIZE + packet_length + sizeof(crc32);    /* GSE_Length */
+              for (int n = 11; n >= 0; n--) {
+                out[offset++] = bits & (1 << n) ? 1 : 0;
+              }
+              bits = frag_id;    /* Frag_ID */
+              frag_id++;
+              for (int n = 7; n >= 0; n--) {
+                out[offset++] = bits & (1 << n) ? 1 : 0;
+              }
+              /* GSE_data_byte */
+              ptr = packet_ptr;
+              length = packet_length;
+              crc32 = crc32_calc_final(ptr, length, crc32_partial);
+              for (int j = 0; j < length; j++) {
+                bits = *ptr++;
                 for (int n = 7; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
-                /* GSE_data_byte */
-                ptr = packet_ptr;
+              }
+              bits = crc32;
+              for (int n = 31; n >= 0; n--) {
+                out[offset++] = bits & (1 << n) ? 1 : 0;
+              }
+              packet_fragmented = FALSE;
+              if (offset == (i + kbch) - padding) {
+                break;
+              }
+            }
+            else {
+              /* PDU continuation */
+              out[offset++] = 0;    /* Start_Indicator = 0 */
+              out[offset++] = 0;    /* End_Indicator = 0 */
+              bits = 0x3;           /* Label_Type_Indicator = re-use */
+              for (int n = 1; n >= 0; n--) {
+                out[offset++] = bits & (1 << n) ? 1 : 0;
+              }
+              bits = (kbch - ((offset + GSE_LENGTH_SIZE - first_offset) - padding)) / 8;    /* GSE_Length */
+              if (bits >= MAX_GSE_LENGTH) {
+                bits = MAX_GSE_LENGTH - 1;
+                maxsize = TRUE;
+              }
+              else {
+                maxsize = FALSE;
+              }
+              for (int n = 11; n >= 0; n--) {
+                out[offset++] = bits & (1 << n) ? 1 : 0;
+              }
+              bits = frag_id;    /* Frag_ID */
+              for (int n = 7; n >= 0; n--) {
+                out[offset++] = bits & (1 << n) ? 1 : 0;
+              }
+              /* GSE_data_byte */
+              ptr = packet_ptr;
+              if (maxsize == TRUE) {
+                length = MAX_GSE_LENGTH - 1 - HEADER_SIZE - FRAG_ID_SIZE - TOTAL_LENGTH_SIZE - ETHER_TYPE_LEN - ETHER_ADDR_LEN;
+              }
+              else {
+                length = (kbch - (offset - first_offset) - padding) / 8;
+              }
+              if (packet_length < length) {
                 length = packet_length;
-                crc32 = crc32_calc_final(ptr, length, crc32_partial);
+                packet_ptr += length;
+                packet_length -= length;
+                crc32_partial = crc32_calc_partial(ptr, length, crc32_partial);
                 for (int j = 0; j < length; j++) {
                   bits = *ptr++;
                   for (int n = 7; n >= 0; n--) {
                     out[offset++] = bits & (1 << n) ? 1 : 0;
                   }
                 }
-                bits = crc32;
-                for (int n = 31; n >= 0; n--) {
-                  out[offset++] = bits & (1 << n) ? 1 : 0;
-                }
-                if (offset == (i + kbch) - padding) {
-                  break;
-                }
+                /* Use baseband padding? */
                 out[offset++] = 0;    /* Start_Indicator = 0 */
                 out[offset++] = 0;    /* End_Indicator = 0 */
                 bits = 0x0;           /* Label_Type_Indicator = 00 */
@@ -749,66 +778,10 @@ namespace gr {
                 for (int n = 3; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
-                memset(&out[offset], 0, kbch - (offset - temp_offset) - padding);
-                offset += kbch - (offset - temp_offset) - padding;
+                memset(&out[offset], 0, kbch - (offset - first_offset) - padding);
+                offset += kbch - (offset - first_offset) - padding;
                 if (offset == (i + kbch) - padding) {
                   break;
-                }
-              }
-              else {
-              }
-            }
-            else {
-              /* PDU continuation */
-              header_offset = offset;
-              out[offset++] = 0;    /* Start_Indicator = 0 */
-              out[offset++] = 0;    /* End_Indicator = 0 */
-              bits = 0x3;           /* Label_Type_Indicator = re-use */
-              for (int n = 1; n >= 0; n--) {
-                out[offset++] = bits & (1 << n) ? 1 : 0;
-              }
-              bits = (kbch - ((offset + GSE_LENGTH_SIZE - temp_offset) - padding)) / 8;    /* GSE_Length */
-              for (int n = 11; n >= 0; n--) {
-                out[offset++] = bits & (1 << n) ? 1 : 0;
-              }
-              bits = frag_id;    /* Frag_ID */
-              for (int n = 7; n >= 0; n--) {
-                out[offset++] = bits & (1 << n) ? 1 : 0;
-              }
-              /* GSE_data_byte */
-              ptr = packet_ptr;
-              length = (kbch - ((offset - temp_offset) - padding)) / 8;
-              if (packet_length < length) {
-                if ((length - packet_length) == (sizeof(crc32))) {
-                  /* PDU end optimization */
-                  length = packet_length;
-                  crc32 = crc32_calc_final(ptr, length, crc32_partial);
-                  for (int j = 0; j < length; j++) {
-                    bits = *ptr++;
-                    for (int n = 7; n >= 0; n--) {
-                      out[offset++] = bits & (1 << n) ? 1 : 0;
-                    }
-                  }
-                  bits = crc32;
-                  for (int n = 31; n >= 0; n--) {
-                    out[offset++] = bits & (1 << n) ? 1 : 0;
-                  }
-                  out[header_offset++] = 0;    /* Start_Indicator = 0 */
-                  out[header_offset++] = 1;    /* End_Indicator = 1 */
-                  frag_id++;
-                  packet_count = 0;
-                }
-                else {
-                  length = packet_length;
-                  packet_ptr += length;
-                  packet_length -= length;
-                  crc32_partial = crc32_calc_partial(ptr, length, crc32_partial);
-                  for (int j = 0; j < length; j++) {
-                    bits = *ptr++;
-                    for (int n = 7; n >= 0; n--) {
-                      out[offset++] = bits & (1 << n) ? 1 : 0;
-                    }
-                  }
                 }
               }
               else {
@@ -822,21 +795,6 @@ namespace gr {
                   }
                 }
               }
-              if (offset == (i + kbch) - padding) {
-                break;
-              }
-              out[offset++] = 0;    /* Start_Indicator = 0 */
-              out[offset++] = 0;    /* End_Indicator = 0 */
-              bits = 0x0;           /* Label_Type_Indicator = 00 */
-              for (int n = 1; n >= 0; n--) {
-                out[offset++] = bits & (1 << n) ? 1 : 0;
-              }
-              /* Padding_bits */
-              for (int n = 3; n >= 0; n--) {
-                out[offset++] = bits & (1 << n) ? 1 : 0;
-              }
-              memset(&out[offset], 0, kbch - (offset - temp_offset) - padding);
-              offset += kbch - (offset - temp_offset) - padding;
               if (offset == (i + kbch) - padding) {
                 break;
               }
@@ -854,8 +812,8 @@ namespace gr {
             for (int n = 3; n >= 0; n--) {
               out[offset++] = bits & (1 << n) ? 1 : 0;
             }
-            memset(&out[offset], 0, kbch - (offset - temp_offset) - padding);
-            offset += kbch - (offset - temp_offset) - padding;
+            memset(&out[offset], 0, kbch - (offset - first_offset) - padding);
+            offset += kbch - (offset - first_offset) - padding;
             if (offset == (i + kbch) - padding) {
               break;
             }

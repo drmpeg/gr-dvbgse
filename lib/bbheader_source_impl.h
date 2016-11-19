@@ -38,6 +38,7 @@
 #define HEADER_SIZE ((START_INDICATOR_SIZE + END_INDICATOR_SIZE + LABEL_TYPE_INDICATOR_SIZE + GSE_LENGTH_SIZE) / 8)
 #define FRAG_ID_SIZE 1
 #define TOTAL_LENGTH_SIZE 2
+#define MAX_GSE_LENGTH 4096
 
 typedef struct{
     int ts_gs;
@@ -79,11 +80,9 @@ namespace gr {
       unsigned int crc32_table[256];
       pcap_t* descr;
       unsigned char *packet_ptr;
-      unsigned int packet_count;
-      int packet_length, shift;
-      bool next_packet_valid;
+      bool packet_fragmented;
+      int packet_length;
       const unsigned char *packet;
-      unsigned char packet_save[4110];
       unsigned char frag_id;
       int crc32_partial;
       void add_bbheader(unsigned char *, int, int, bool);
