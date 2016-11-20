@@ -28,6 +28,33 @@ the ETSI TS 102 606-1 V1.2.1 Generic Stream Encapsulation standard:
 
 http://www.etsi.org/deliver/etsi_ts/102600_102699/10260601/01.02.01_60/ts_10260601v010201p.pdf
 
+Usage:
+
+Because the Pcap library is used to capture raw packets, the capabilities
+of the Python interpreter need to be increased. This only needs to be
+done once.
+
+sudo setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' /usr/bin/python2.7
+
+CAUTION: This allows any Python program to open network interfaces.
+
+The current implementation of the block uses a TAP network interface
+named tap0.
+
+To add a TAP interface (with ip(8) commands):
+
+sudo ip tuntap add dev tap0 mode tap
+
+sudo ip link set dev tap0 address 02:00:48:55:4c:4b
+
+sudo ip addr add 44.0.0.1/24 dev tap0
+
+sudo ip link set tap0 mtu 4096 arp off
+
+To delete the TAP interface:
+
+sudo ip tuntap del dev tap0 mode tap
+
 Dependencies:
 
 libpcap-dev
