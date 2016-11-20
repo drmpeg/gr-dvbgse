@@ -667,7 +667,7 @@ namespace gr {
                 /* GSE_data_byte */
                 ptr = (unsigned char *)(packet + sizeof(struct ether_header));
                 if (maxsize == TRUE) {
-                  length = MAX_GSE_LENGTH - 1 - HEADER_SIZE - FRAG_ID_SIZE - TOTAL_LENGTH_SIZE - ETHER_TYPE_LEN - ETHER_ADDR_LEN;
+                  length = MAX_GSE_LENGTH - 1 - FRAG_ID_SIZE - TOTAL_LENGTH_SIZE - ETHER_TYPE_LEN - ETHER_ADDR_LEN;
                 }
                 else {
                   length = (kbch - (offset - first_offset) - padding) / 8;
@@ -751,7 +751,7 @@ namespace gr {
               /* GSE_data_byte */
               ptr = packet_ptr;
               if (maxsize == TRUE) {
-                length = MAX_GSE_LENGTH - 1 - HEADER_SIZE - FRAG_ID_SIZE - TOTAL_LENGTH_SIZE - ETHER_TYPE_LEN - ETHER_ADDR_LEN;
+                length = MAX_GSE_LENGTH - 1 - FRAG_ID_SIZE;
               }
               else {
                 length = (kbch - (offset - first_offset) - padding) / 8;
