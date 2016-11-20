@@ -27,7 +27,6 @@
 
 #define DEFAULT_IF "tap0"
 #define FILTER "ether src "
-#undef DEBUG
 #define PING_REPLY
 
 namespace gr {
@@ -317,9 +316,11 @@ namespace gr {
       strcpy(filter, FILTER);
       strcat(filter, mac_address);
       if (pcap_compile(descr, &fp, filter, 0, netp) == -1) {
+        pcap_close(descr);
         throw std::runtime_error("Error calling pcap_compile()\n");
       }
       if (pcap_setfilter(descr, &fp) == -1) {
+        pcap_close(descr);
         throw std::runtime_error("Error calling pcap_setfilter()\n");
       }
 
@@ -336,6 +337,9 @@ namespace gr {
      */
     bbheader_source_impl::~bbheader_source_impl()
     {
+      if (descr) {
+        pcap_close(descr);
+      }
     }
 
 #define CRC_POLY 0xAB
@@ -545,6 +549,68 @@ namespace gr {
     }
 
     int
+    bbheader_source_impl::checksum(unsigned short *addr, int count)
+    {
+      int sum = 0;
+
+      while (count > 1) {
+        sum += *addr++;
+        count -= 2;
+      }
+      if (count > 0) {
+        sum += *(unsigned char *)addr;
+      }
+      sum = (sum & 0xffff) + (sum >> 16);
+      sum += (sum >> 16);
+      return (~sum);
+    }
+
+    inline void
+    bbheader_source_impl::ping_reply(void)
+    {
+#ifdef PING_REPLY
+      unsigned short *csum_ptr;
+      unsigned short header_length, total_length, type_code;
+      int csum;
+      struct ip *ip_ptr;
+      unsigned char *saddr_ptr, *daddr_ptr;
+      unsigned char addr[4];
+
+      /* jam ping reply and calculate new checksum */
+      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header));
+      header_length = (*csum_ptr & 0xf) * 4;
+      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + 2);
+      total_length = ((*csum_ptr & 0xff) << 8) | ((*csum_ptr & 0xff00) >> 8);
+
+      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip));
+      type_code = *csum_ptr;
+      type_code = (type_code & 0xff00) | 0x0;
+      *csum_ptr++ = type_code;
+      *csum_ptr = 0x0000;
+      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip));
+      csum = checksum(csum_ptr, total_length - header_length);
+      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip) + 2);
+      *csum_ptr = csum;
+
+      /* swap IP adresses */
+      ip_ptr = (struct ip*)(packet + sizeof(struct ether_header));
+      saddr_ptr = (unsigned char *)&ip_ptr->ip_src;
+      daddr_ptr = (unsigned char *)&ip_ptr->ip_dst;
+      for (int i = 0; i < 4; i++) {
+        addr[i] = *daddr_ptr++;
+      }
+      daddr_ptr = (unsigned char *)&ip_ptr->ip_dst;
+      for (int i = 0; i < 4; i++) {
+        *daddr_ptr++ = *saddr_ptr++;
+      }
+      saddr_ptr = (unsigned char *)&ip_ptr->ip_src;
+      for (int i = 0; i < 4; i++) {
+        *saddr_ptr++ = addr[i];
+      }
+#endif
+    }
+
+    int
     bbheader_source_impl::work(int noutput_items,
         gr_vector_const_void_star &input_items,
         gr_vector_void_star &output_items)
@@ -586,6 +652,9 @@ namespace gr {
                 for (int n = 11; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
+
+                ping_reply();
+
                 eptr = (struct ether_header *)packet;
                 /* Protocol_Type */
                 ptr = (unsigned char *)&eptr->ether_type;
@@ -645,6 +714,9 @@ namespace gr {
                 for (int n = 15; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
+
+                ping_reply();
+
                 eptr = (struct ether_header *)packet;
                 /* Protocol_Type */
                 ptr = (unsigned char *)&eptr->ether_type;
