@@ -82,6 +82,7 @@ namespace gr {
       unsigned char *packet_ptr;
       bool packet_fragmented;
       int packet_length;
+      bool last_packet_valid;
       const unsigned char *packet;
       unsigned char frag_id;
       int crc32_partial;
