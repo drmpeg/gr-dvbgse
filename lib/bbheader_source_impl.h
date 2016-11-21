@@ -79,6 +79,7 @@ namespace gr {
       unsigned char crc_tab[256];
       unsigned int crc32_table[256];
       pcap_t* descr;
+      int fd;
       unsigned char *packet_ptr;
       bool packet_fragmented;
       int packet_length;

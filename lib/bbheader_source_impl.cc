@@ -53,7 +53,7 @@ namespace gr {
       bpf_u_int32 netp = 0;
       char filter[50];
       struct ifreq ifr;
-      int fd, err;
+      int err;
 
       count = 0;
       crc = 0x0;
@@ -64,6 +64,8 @@ namespace gr {
       packet_fragmented = FALSE;
       last_packet_valid = FALSE;
       frag_id = 1;
+      descr = NULL;
+      fd = 0;
       BBHeader *f = &m_format[0].bb_header;
       if (framesize == FECFRAME_NORMAL) {
         switch (rate) {
@@ -325,12 +327,7 @@ namespace gr {
         throw std::runtime_error("Error calling pcap_setfilter()\n");
       }
 
-      if (framesize != FECFRAME_MEDIUM) {
-        set_output_multiple(kbch);
-      }
-      else {
-        set_output_multiple(kbch * 2);
-      }
+      set_output_multiple(kbch);
     }
 
     /*
@@ -338,6 +335,9 @@ namespace gr {
      */
     bbheader_source_impl::~bbheader_source_impl()
     {
+      if (fd) {
+        close(fd);
+      }
       if (descr) {
         pcap_close(descr);
       }
@@ -628,11 +628,21 @@ namespace gr {
       bool maxsize;
 
       for (int i = 0; i < noutput_items; i += kbch) {
-        if (fec_block == 0 && inband_type_b == TRUE) {
-          padding = 104;
+        if (frame_size != FECFRAME_MEDIUM) {
+          if (fec_block == 0 && inband_type_b == TRUE) {
+            padding = 104;
+          }
+          else {
+            padding = 0;
+          }
         }
         else {
-          padding = 0;
+          if (fec_block == 0 && inband_type_b == TRUE) {
+            padding = 108;
+          }
+          else {
+            padding = 4;
+          }
         }
         add_bbheader(&out[offset], count, padding, TRUE);
         first_offset = offset;
@@ -903,9 +913,13 @@ namespace gr {
         if (fec_block == 0 && inband_type_b == TRUE) {
           add_inband_type_b(&out[offset], ts_rate);
           offset = offset + 104;
+          padding -= 104;
         }
         if (inband_type_b == TRUE) {
           fec_block = (fec_block + 1) % fec_blocks;
+        }
+        for (unsigned int n = 0; n < padding; n++) {
+          out[offset++] = 0;
         }
       }
 
