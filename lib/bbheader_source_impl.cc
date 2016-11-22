@@ -27,7 +27,8 @@
 
 #define DEFAULT_IF "tap0"
 #define FILTER "ether src "
-#define PING_REPLY
+#undef DEBUG
+#undef PING_REPLY
 
 namespace gr {
   namespace dvbgse {
@@ -310,11 +311,31 @@ namespace gr {
       }
 
       strcpy(dev, DEFAULT_IF);
-      descr = pcap_open_live(dev, 65536, 0, -1, errbuf);
+      descr = pcap_create(dev, errbuf);
       if (descr == NULL) {
         std::stringstream s;
-        s << "Error calling pcap_open_live(): " << errbuf << std::endl;
+        s << "Error calling pcap_create(): " << errbuf << std::endl;
         throw std::runtime_error(s.str());
+      }
+      if (pcap_set_promisc(descr, 0) != 0) {
+        pcap_close(descr);
+        throw std::runtime_error("Error calling pcap_set_promisc()\n");
+      }
+      if (pcap_set_timeout(descr, -1) != 0) {
+        pcap_close(descr);
+        throw std::runtime_error("Error calling pcap_set_timeout()\n");
+      }
+      if (pcap_set_snaplen(descr, 65536) != 0) {
+        pcap_close(descr);
+        throw std::runtime_error("Error calling pcap_set_snaplen()\n");
+      }
+      if (pcap_set_buffer_size(descr, 1024 * 1024) != 0) {
+        pcap_close(descr);
+        throw std::runtime_error("Error calling pcap_set_buffer_size()\n");
+      }
+      if (pcap_activate(descr) != 0) {
+        pcap_close(descr);
+        throw std::runtime_error("Error calling pcap_activate()\n");
       }
       strcpy(filter, FILTER);
       strcat(filter, mac_address);
@@ -611,6 +632,27 @@ namespace gr {
 #endif
     }
 
+    inline void
+    bbheader_source_impl::dump_packet(unsigned char *packet)
+    {
+#ifdef DEBUG
+      unsigned char pack;
+
+      printf("\n");
+      for (unsigned int i = 0; i < kbch / 8; i++) {
+        if (i % 16 == 0) {
+          printf("\n");
+        }
+        pack = 0;
+        for (int n = 0; n < 8; n++) {
+          pack |= *packet++ << (7 - n);
+        }
+        printf("0x%02x:", pack);
+      }
+      printf("\n");
+#endif
+    }
+
     int
     bbheader_source_impl::work(int noutput_items,
         gr_vector_const_void_star &input_items,
@@ -626,6 +668,7 @@ namespace gr {
       int length;
       int crc32;
       bool maxsize;
+      bool gse = FALSE;
 
       for (int i = 0; i < noutput_items; i += kbch) {
         if (frame_size != FECFRAME_MEDIUM) {
@@ -656,6 +699,7 @@ namespace gr {
               last_packet_valid = FALSE;
               if (((hdr.len - sizeof(struct ether_header) + HEADER_SIZE + ETHER_TYPE_LEN + ETHER_ADDR_LEN) <= ((kbch - (offset - first_offset) - padding) / 8)) && ((hdr.len - sizeof(struct ether_header) + ETHER_TYPE_LEN + ETHER_ADDR_LEN) < 4096)) {
                 /* PDU start, no fragmentation */
+                gse = TRUE;
                 out[offset++] = 1;    /* Start_Indicator = 1 */
                 out[offset++] = 1;    /* End_Indicator = 1 */
                 bits = 0x0;           /* Label_Type_Indicator = 6 byte */
@@ -697,10 +741,12 @@ namespace gr {
                 if (offset == (i + kbch) - padding) {
                   break;
                 }
+                continue;
               }
               else {
                 /* PDU start, fragmented */
                 if (((kbch - (offset - first_offset) - padding) / 8) >= (HEADER_SIZE + FRAG_ID_SIZE + TOTAL_LENGTH_SIZE + ETHER_TYPE_LEN + ETHER_ADDR_LEN)) {
+                  gse = TRUE;
                   out[offset++] = 1;    /* Start_Indicator = 1 */
                   out[offset++] = 0;    /* End_Indicator = 0 */
                   bits = 0x0;           /* Label_Type_Indicator = 6 byte */
@@ -782,6 +828,7 @@ namespace gr {
           if (packet_fragmented == TRUE) {
             if (((packet_length + HEADER_SIZE + FRAG_ID_SIZE + sizeof(crc32)) <= ((kbch - (offset - first_offset) - padding) / 8)) && ((packet_length + HEADER_SIZE + FRAG_ID_SIZE + sizeof(crc32)) < 4096)) {
               /* PDU end */
+              gse = TRUE;
               out[offset++] = 0;    /* Start_Indicator = 0 */
               out[offset++] = 1;    /* End_Indicator = 1 */
               bits = 0x3;           /* Label_Type_Indicator = re-use */
@@ -818,6 +865,7 @@ namespace gr {
             }
             else {
               /* PDU continuation */
+              gse = TRUE;
               out[offset++] = 0;    /* Start_Indicator = 0 */
               out[offset++] = 0;    /* End_Indicator = 0 */
               bits = 0x3;           /* Label_Type_Indicator = re-use */
@@ -920,6 +968,10 @@ namespace gr {
         }
         for (unsigned int n = 0; n < padding; n++) {
           out[offset++] = 0;
+        }
+        if (gse == TRUE) {
+          gse = FALSE;
+          dump_packet(&out[first_offset]);
         }
       }
 

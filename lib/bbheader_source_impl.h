@@ -97,6 +97,7 @@ namespace gr {
       int crc32_calc_final(unsigned char *, int, int);
       int checksum(unsigned short *, int);
       inline void ping_reply(void);
+      inline void dump_packet(unsigned char *);
 
      public:
       bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address);
