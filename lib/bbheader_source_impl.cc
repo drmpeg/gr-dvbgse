@@ -24,29 +24,33 @@
 
 #include <gnuradio/io_signature.h>
 #include "bbheader_source_impl.h"
+#include <boost/array.hpp>
+#include <boost/asio.hpp>
+#include <boost/format.hpp>
 
 #define DEFAULT_IF "tap0"
 #define FILTER "ether src "
 #undef DEBUG
-#undef PING_REPLY
+#define PING_REPLY
 
 namespace gr {
   namespace dvbgse {
 
     bbheader_source::sptr
-    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address)
+    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, const std::string &host, int port)
     {
       return gnuradio::get_initial_sptr
-        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, mac_address));
+        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, mac_address, host, port));
     }
 
     /*
      * The private constructor
      */
-    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address)
+    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, const std::string &host, int port)
       : gr::sync_block("bbheader_source",
               gr::io_signature::make(0, 0, 0),
-              gr::io_signature::make(1, 1, sizeof(unsigned char)))
+              gr::io_signature::make(1, 1, sizeof(unsigned char))),
+        d_connected(false)
     {
       char errbuf[PCAP_ERRBUF_SIZE];
       char dev[IFNAMSIZ];
@@ -55,6 +59,8 @@ namespace gr {
       char filter[50];
       struct ifreq ifr;
       int err;
+
+      connect(host, port);
 
       count = 0;
       crc = 0x0;
@@ -362,6 +368,45 @@ namespace gr {
       if (descr) {
         pcap_close(descr);
       }
+      if (d_connected)
+        disconnect();
+    }
+
+    void
+    bbheader_source_impl::connect(const std::string &host, int port)
+    {
+      if (d_connected)
+        disconnect();
+
+      std::string s_port = (boost::format("%d")%port).str();
+      if (host.size() > 0) {
+        boost::asio::ip::udp::resolver resolver(d_io_service);
+        boost::asio::ip::udp::resolver::query query(host, s_port,
+                                                    boost::asio::ip::resolver_query_base::passive);
+        d_endpoint = *resolver.resolve(query);
+
+        d_socket = new boost::asio::ip::udp::socket(d_io_service);
+        d_socket->open(d_endpoint.protocol());
+
+        boost::asio::socket_base::reuse_address roption(true);
+        d_socket->set_option(roption);
+
+        d_connected = true;
+      }
+    }
+
+    void
+    bbheader_source_impl::disconnect()
+    {
+      if (!d_connected)
+        return;
+
+      gr::thread::scoped_lock guard(d_mutex);
+
+      d_socket->close();
+      delete d_socket;
+
+      d_connected = false;
     }
 
 #define CRC_POLY 0xAB
@@ -592,7 +637,7 @@ namespace gr {
     {
 #ifdef PING_REPLY
       unsigned short *csum_ptr;
-      unsigned short header_length, total_length, type_code;
+      unsigned short header_length, total_length, type_code, fragment_offset;
       int csum;
       struct ip *ip_ptr;
       unsigned char *saddr_ptr, *daddr_ptr;
@@ -603,16 +648,20 @@ namespace gr {
       header_length = (*csum_ptr & 0xf) * 4;
       csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + 2);
       total_length = ((*csum_ptr & 0xff) << 8) | ((*csum_ptr & 0xff00) >> 8);
+      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + 6);
+      fragment_offset = ((*csum_ptr & 0xff) << 8) | ((*csum_ptr & 0xff00) >> 8);
 
       csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip));
       type_code = *csum_ptr;
       type_code = (type_code & 0xff00) | 0x0;
-      *csum_ptr++ = type_code;
-      *csum_ptr = 0x0000;
-      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip));
-      csum = checksum(csum_ptr, total_length - header_length);
-      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip) + 2);
-      *csum_ptr = csum;
+      if ((fragment_offset & 0x1fff) == 0) {
+        *csum_ptr++ = type_code;
+        *csum_ptr = 0x0000;
+        csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip));
+        csum = checksum(csum_ptr, total_length - header_length);
+        csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip) + 2);
+        *csum_ptr = csum;
+      }
 
       /* swap IP adresses */
       ip_ptr = (struct ip*)(packet + sizeof(struct ether_header));
@@ -669,6 +718,8 @@ namespace gr {
       int crc32;
       bool maxsize;
       bool gse = FALSE;
+
+      gr::thread::scoped_lock guard(d_mutex);
 
       for (int i = 0; i < noutput_items; i += kbch) {
         if (frame_size != FECFRAME_MEDIUM) {
@@ -972,6 +1023,28 @@ namespace gr {
         if (gse == TRUE) {
           gse = FALSE;
           dump_packet(&out[first_offset]);
+          if (d_connected) {
+            unsigned char pack;
+            unsigned char *packet = &out[first_offset];
+            unsigned char *udp_packet_ptr = udp_packet;
+            *udp_packet_ptr++ = 0xb8;
+            *udp_packet_ptr++ = 0x21;
+            *udp_packet_ptr++ = 248;
+            *udp_packet_ptr++ = 0;
+            for (unsigned int n = 0; n < kbch / 8; n++) {
+              pack = 0;
+              for (int n = 0; n < 8; n++) {
+                pack |= *packet++ << (7 - n);
+              }
+              *udp_packet_ptr++ = pack;
+            }
+            try {
+              d_socket->send_to(boost::asio::buffer((void*)(udp_packet), (kbch / 8) + 4), d_endpoint);
+            }
+            catch(std::exception& e) {
+              GR_LOG_ERROR(d_logger, boost::format("send error: %s") % e.what());
+            }
+          }
         }
       }
 

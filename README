@@ -49,7 +49,17 @@ sudo ip link set dev tap0 address 02:00:48:55:4c:4b
 
 sudo ip addr add 44.0.0.1/24 dev tap0
 
-sudo ip link set tap0 mtu 4096 arp off
+sudo ip link set tap0 up
+
+sudo ip link set tap0 arp off
+
+To forward packets received in the tap0 IP address range
+to the default network interface (replace eth0 with your
+default device name):
+
+sudo sysctl -w net.ipv4.conf.all.rp_filter=0
+
+sudo sysctl -w net.ipv4.conf.eth0.rp_filter=0
 
 To delete the TAP interface:
 
