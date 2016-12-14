@@ -29,7 +29,6 @@
 #include <netinet/ip.h>
 #include <net/if.h>
 #include <linux/if_tun.h>
-#include <boost/asio.hpp>
 
 #define START_INDICATOR_SIZE 1
 #define END_INDICATOR_SIZE 1
@@ -93,24 +92,13 @@ namespace gr {
       int add_crc8_bits(unsigned char *, int);
       void add_inband_type_b(unsigned char *, int);
       void crc32_init(void);
-      int crc32_calc(unsigned char *, int);
-      int crc32_calc_partial(unsigned char *, int, int);
-      int crc32_calc_final(unsigned char *, int, int);
+      int crc32_calc(unsigned char *, int, int);
       int checksum(unsigned short *, int);
       inline void ping_reply(void);
       inline void dump_packet(unsigned char *);
 
-      unsigned char udp_packet[FRAME_SIZE_NORMAL / 8];
-      bool d_connected;
-      gr::thread::mutex d_mutex;
-      boost::asio::ip::udp::socket *d_socket;
-      boost::asio::ip::udp::endpoint d_endpoint;
-      boost::asio::io_service d_io_service;
-      void connect(const std::string &host, int port);
-      void disconnect();
-
      public:
-      bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, const std::string &host, int port);
+      bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address);
       ~bbheader_source_impl();
 
       int work(int noutput_items,

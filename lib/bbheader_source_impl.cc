@@ -24,33 +24,29 @@
 
 #include <gnuradio/io_signature.h>
 #include "bbheader_source_impl.h"
-#include <boost/array.hpp>
-#include <boost/asio.hpp>
-#include <boost/format.hpp>
 
 #define DEFAULT_IF "tap0"
 #define FILTER "ether src "
 #undef DEBUG
-#define PING_REPLY
+#undef PING_REPLY
 
 namespace gr {
   namespace dvbgse {
 
     bbheader_source::sptr
-    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, const std::string &host, int port)
+    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address)
     {
       return gnuradio::get_initial_sptr
-        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, mac_address, host, port));
+        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, mac_address));
     }
 
     /*
      * The private constructor
      */
-    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, const std::string &host, int port)
+    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address)
       : gr::sync_block("bbheader_source",
               gr::io_signature::make(0, 0, 0),
-              gr::io_signature::make(1, 1, sizeof(unsigned char))),
-        d_connected(false)
+              gr::io_signature::make(1, 1, sizeof(unsigned char)))
     {
       char errbuf[PCAP_ERRBUF_SIZE];
       char dev[IFNAMSIZ];
@@ -59,8 +55,6 @@ namespace gr {
       char filter[50];
       struct ifreq ifr;
       int err;
-
-      connect(host, port);
 
       count = 0;
       crc = 0x0;
@@ -368,45 +362,6 @@ namespace gr {
       if (descr) {
         pcap_close(descr);
       }
-      if (d_connected)
-        disconnect();
-    }
-
-    void
-    bbheader_source_impl::connect(const std::string &host, int port)
-    {
-      if (d_connected)
-        disconnect();
-
-      std::string s_port = (boost::format("%d")%port).str();
-      if (host.size() > 0) {
-        boost::asio::ip::udp::resolver resolver(d_io_service);
-        boost::asio::ip::udp::resolver::query query(host, s_port,
-                                                    boost::asio::ip::resolver_query_base::passive);
-        d_endpoint = *resolver.resolve(query);
-
-        d_socket = new boost::asio::ip::udp::socket(d_io_service);
-        d_socket->open(d_endpoint.protocol());
-
-        boost::asio::socket_base::reuse_address roption(true);
-        d_socket->set_option(roption);
-
-        d_connected = true;
-      }
-    }
-
-    void
-    bbheader_source_impl::disconnect()
-    {
-      if (!d_connected)
-        return;
-
-      gr::thread::scoped_lock guard(d_mutex);
-
-      d_socket->close();
-      delete d_socket;
-
-      d_connected = false;
     }
 
 #define CRC_POLY 0xAB
@@ -562,43 +517,12 @@ namespace gr {
     }
 
     int
-    bbheader_source_impl::crc32_calc(unsigned char *buf, int size)
-    {
-      int crc = 0xffffffffL;
-      int reverse;
-
-      for (int i = 0; i < size; i++) {
-        crc = (crc << 8) ^ crc32_table[((crc >> 24) ^ buf[i]) & 0xff];
-      }
-      reverse = (crc & 0xff) << 24;
-      reverse |= (crc & 0xff00) << 8;
-      reverse |= (crc & 0xff0000) >> 8;
-      reverse |= (crc & 0xff000000) >> 24;
-      return (reverse);
-    }
-
-    int
-    bbheader_source_impl::crc32_calc_partial(unsigned char *buf, int size, int crc)
+    bbheader_source_impl::crc32_calc(unsigned char *buf, int size, int crc)
     {
       for (int i = 0; i < size; i++) {
         crc = (crc << 8) ^ crc32_table[((crc >> 24) ^ buf[i]) & 0xff];
       }
       return (crc);
-    }
-
-    int
-    bbheader_source_impl::crc32_calc_final(unsigned char *buf, int size, int crc)
-    {
-      int reverse;
-
-      for (int i = 0; i < size; i++) {
-        crc = (crc << 8) ^ crc32_table[((crc >> 24) ^ buf[i]) & 0xff];
-      }
-      reverse = (crc & 0xff) << 24;
-      reverse |= (crc & 0xff00) << 8;
-      reverse |= (crc & 0xff0000) >> 8;
-      reverse |= (crc & 0xff000000) >> 24;
-      return (reverse);
     }
 
     void
@@ -719,8 +643,6 @@ namespace gr {
       bool maxsize;
       bool gse = FALSE;
 
-      gr::thread::scoped_lock guard(d_mutex);
-
       for (int i = 0; i < noutput_items; i += kbch) {
         if (frame_size != FECFRAME_MEDIUM) {
           if (fec_block == 0 && inband_type_b == TRUE) {
@@ -822,7 +744,7 @@ namespace gr {
                   bits = hdr.len - sizeof(struct ether_header) + ETHER_TYPE_LEN + ETHER_ADDR_LEN;    /* Total_Length */
                   total_length[0] = (bits >> 8) & 0xff;
                   total_length[1] = bits & 0xff;
-                  crc32_partial = crc32_calc_partial(&total_length[0], 2, 0xffffffff);
+                  crc32_partial = crc32_calc(&total_length[0], 2, 0xffffffff);
                   for (int n = 15; n >= 0; n--) {
                     out[offset++] = bits & (1 << n) ? 1 : 0;
                   }
@@ -832,7 +754,7 @@ namespace gr {
                   eptr = (struct ether_header *)packet;
                   /* Protocol_Type */
                   ptr = (unsigned char *)&eptr->ether_type;
-                  crc32_partial = crc32_calc_partial(ptr, ETHER_TYPE_LEN, crc32_partial);
+                  crc32_partial = crc32_calc(ptr, ETHER_TYPE_LEN, crc32_partial);
                   for (int j = 0; j < ETHER_TYPE_LEN; j++) {
                     bits = *ptr++;
                     for (int n = 7; n >= 0; n--) {
@@ -841,7 +763,7 @@ namespace gr {
                   }
                   /* 6_Byte_Label */
                   ptr = eptr->ether_dhost;
-                  crc32_partial = crc32_calc_partial(ptr, ETHER_ADDR_LEN, crc32_partial);
+                  crc32_partial = crc32_calc(ptr, ETHER_ADDR_LEN, crc32_partial);
                   for (int j = 0; j < ETHER_ADDR_LEN; j++) {
                     bits = *ptr++;
                     for (int n = 7; n >= 0; n--) {
@@ -856,7 +778,7 @@ namespace gr {
                   else {
                     length = (kbch - (offset - first_offset) - padding) / 8;
                   }
-                  crc32_partial = crc32_calc_partial(ptr, length, crc32_partial);
+                  crc32_partial = crc32_calc(ptr, length, crc32_partial);
                   packet_length = hdr.len - sizeof(struct ether_header) - length;
                   for (int j = 0; j < length; j++) {
                     bits = *ptr++;
@@ -898,7 +820,7 @@ namespace gr {
               /* GSE_data_byte */
               ptr = packet_ptr;
               length = packet_length;
-              crc32 = crc32_calc_final(ptr, length, crc32_partial);
+              crc32 = crc32_calc(ptr, length, crc32_partial);
               for (int j = 0; j < length; j++) {
                 bits = *ptr++;
                 for (int n = 7; n >= 0; n--) {
@@ -950,7 +872,7 @@ namespace gr {
                 length = packet_length;
                 packet_ptr += length;
                 packet_length -= length;
-                crc32_partial = crc32_calc_partial(ptr, length, crc32_partial);
+                crc32_partial = crc32_calc(ptr, length, crc32_partial);
                 for (int j = 0; j < length; j++) {
                   bits = *ptr++;
                   for (int n = 7; n >= 0; n--) {
@@ -977,7 +899,7 @@ namespace gr {
               else {
                 packet_ptr += length;
                 packet_length -= length;
-                crc32_partial = crc32_calc_partial(ptr, length, crc32_partial);
+                crc32_partial = crc32_calc(ptr, length, crc32_partial);
                 for (int j = 0; j < length; j++) {
                   bits = *ptr++;
                   for (int n = 7; n >= 0; n--) {
@@ -991,19 +913,8 @@ namespace gr {
             }
           }
           else {
-            /* No PDU's to send */
-            out[offset++] = 0;    /* Start_Indicator = 0 */
-            out[offset++] = 0;    /* End_Indicator = 0 */
-            bits = 0x0;           /* Label_Type_Indicator = 00 */
-            for (int n = 1; n >= 0; n--) {
-              out[offset++] = bits & (1 << n) ? 1 : 0;
-            }
-            /* Padding_bits */
-            for (int n = 3; n >= 0; n--) {
-              out[offset++] = bits & (1 << n) ? 1 : 0;
-            }
-            memset(&out[offset], 0, kbch - (offset - first_offset) - padding);
-            offset += kbch - (offset - first_offset) - padding;
+            padding = kbch - (offset - first_offset);
+            add_bbheader(&out[first_offset], count, padding, TRUE);
             if (offset == (i + kbch) - padding) {
               break;
             }
@@ -1017,34 +928,13 @@ namespace gr {
         if (inband_type_b == TRUE) {
           fec_block = (fec_block + 1) % fec_blocks;
         }
-        for (unsigned int n = 0; n < padding; n++) {
-          out[offset++] = 0;
+        if (padding != 0) {
+          memset(&out[offset], 0, padding);
+          offset += padding;
         }
         if (gse == TRUE) {
           gse = FALSE;
           dump_packet(&out[first_offset]);
-          if (d_connected) {
-            unsigned char pack;
-            unsigned char *packet = &out[first_offset];
-            unsigned char *udp_packet_ptr = udp_packet;
-            *udp_packet_ptr++ = 0xb8;
-            *udp_packet_ptr++ = 0x21;
-            *udp_packet_ptr++ = 248;
-            *udp_packet_ptr++ = 0;
-            for (unsigned int n = 0; n < kbch / 8; n++) {
-              pack = 0;
-              for (int n = 0; n < 8; n++) {
-                pack |= *packet++ << (7 - n);
-              }
-              *udp_packet_ptr++ = pack;
-            }
-            try {
-              d_socket->send_to(boost::asio::buffer((void*)(udp_packet), (kbch / 8) + 4), d_endpoint);
-            }
-            catch(std::exception& e) {
-              GR_LOG_ERROR(d_logger, boost::format("send error: %s") % e.what());
-            }
-          }
         }
       }
 

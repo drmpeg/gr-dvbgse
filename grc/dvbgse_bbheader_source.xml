@@ -30,7 +30,7 @@ $rate4.val, #slurp
 $rate5.val, #slurp
 #end if
 #end if
-$rolloff.val, $inband.val, $fecblocks, $tsrate, $mac_address, $ipaddr, $port)</make>
+$rolloff.val, $inband.val, $fecblocks, $tsrate, $mac_address)</make>
   <param>
     <name>Standard</name>
     <key>standard</key>
@@ -575,16 +575,6 @@ $rolloff.val, $inband.val, $fecblocks, $tsrate, $mac_address, $ipaddr, $port)</m
     <key>mac_address</key>
     <value></value>
     <type>string</type>
-  </param>
-  <param>
-    <name>Destination IP Address</name>
-    <key>ipaddr</key>
-    <type>string</type>
-  </param>
-  <param>
-    <name>Destination Port</name>
-    <key>port</key>
-    <type>int</type>
   </param>
   <source>
     <name>out</name>
