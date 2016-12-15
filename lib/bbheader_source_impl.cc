@@ -812,7 +812,7 @@ namespace gr {
                 bits = FRAG_ID_SIZE + packet_length + sizeof(crc32);    /* GSE_Length */
               }
               else {
-                bits = FRAG_ID_SIZE + (crc32_remainder / 8);    /* GSE_Length */
+                bits = FRAG_ID_SIZE + ((32 - crc32_remainder) / 8);    /* GSE_Length */
               }
               for (int n = 11; n >= 0; n--) {
                 out[offset++] = bits & (1 << n) ? 1 : 0;
@@ -840,7 +840,7 @@ namespace gr {
               }
               else {
                 bits = crc32_partial;
-                for (int n = crc32_remainder - 1; n >= 0; n--) {
+                for (int n = 32 - crc32_remainder - 1; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
               }
@@ -894,7 +894,7 @@ namespace gr {
                 }
                 bits = crc32_partial;
                 crc32_remainder = kbch - (offset - first_offset) - padding;
-                for (int n = 31; n >= crc32_remainder; n--) {
+                for (int n = 31; n >= 32 - crc32_remainder; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
                 if (offset == (i + kbch) - padding) {
