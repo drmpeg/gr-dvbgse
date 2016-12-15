@@ -28,6 +28,16 @@ the ETSI TS 102 606-1 V1.2.1 Generic Stream Encapsulation standard:
 
 http://www.etsi.org/deliver/etsi_ts/102600_102699/10260601/01.02.01_60/ts_10260601v010201p.pdf
 
+Requirements:
+
+A DVB-S2 receiver that supports the DVB-GSE protocol. This module was
+tested with an Ayecka SR1 DVB-S2 receiver. Note that a special order SR1
+is required. The stock SR1 only does MPE protocol. The DVB-S2 receiver
+is connected to the DVB-S2 transmitter with a coaxial cable and 40 dB
+attenuator for loopback testing.
+
+http://www.ayecka.com/products-SR1.php
+
 Usage:
 
 Because the Pcap library is used to capture raw packets, the capabilities
