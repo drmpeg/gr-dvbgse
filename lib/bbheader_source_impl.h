@@ -87,6 +87,7 @@ namespace gr {
       const unsigned char *packet;
       unsigned char frag_id;
       int crc32_partial;
+      int crc32_remainder;
       void add_bbheader(unsigned char *, int, int, bool);
       void build_crc8_table(void);
       int add_crc8_bits(unsigned char *, int);

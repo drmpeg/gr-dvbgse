@@ -28,7 +28,7 @@
 #define DEFAULT_IF "tap0"
 #define FILTER "ether src "
 #undef DEBUG
-#undef PING_REPLY
+#define PING_REPLY
 
 namespace gr {
   namespace dvbgse {
@@ -808,7 +808,12 @@ namespace gr {
               for (int n = 1; n >= 0; n--) {
                 out[offset++] = bits & (1 << n) ? 1 : 0;
               }
-              bits = FRAG_ID_SIZE + packet_length + sizeof(crc32);    /* GSE_Length */
+              if (packet_length != 0) {
+                bits = FRAG_ID_SIZE + packet_length + sizeof(crc32);    /* GSE_Length */
+              }
+              else {
+                bits = FRAG_ID_SIZE + (crc32_remainder / 8);    /* GSE_Length */
+              }
               for (int n = 11; n >= 0; n--) {
                 out[offset++] = bits & (1 << n) ? 1 : 0;
               }
@@ -820,16 +825,24 @@ namespace gr {
               /* GSE_data_byte */
               ptr = packet_ptr;
               length = packet_length;
-              crc32 = crc32_calc(ptr, length, crc32_partial);
-              for (int j = 0; j < length; j++) {
-                bits = *ptr++;
-                for (int n = 7; n >= 0; n--) {
+              if (length != 0) {
+                crc32 = crc32_calc(ptr, length, crc32_partial);
+                for (int j = 0; j < length; j++) {
+                  bits = *ptr++;
+                  for (int n = 7; n >= 0; n--) {
+                    out[offset++] = bits & (1 << n) ? 1 : 0;
+                  }
+                }
+                bits = crc32;
+                for (int n = 31; n >= 0; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
               }
-              bits = crc32;
-              for (int n = 31; n >= 0; n--) {
-                out[offset++] = bits & (1 << n) ? 1 : 0;
+              else {
+                bits = crc32_partial;
+                for (int n = crc32_remainder - 1; n >= 0; n--) {
+                  out[offset++] = bits & (1 << n) ? 1 : 0;
+                }
               }
               packet_fragmented = FALSE;
               if (offset == (i + kbch) - padding) {
@@ -879,19 +892,11 @@ namespace gr {
                     out[offset++] = bits & (1 << n) ? 1 : 0;
                   }
                 }
-                /* Use baseband padding? */
-                out[offset++] = 0;    /* Start_Indicator = 0 */
-                out[offset++] = 0;    /* End_Indicator = 0 */
-                bits = 0x0;           /* Label_Type_Indicator = 00 */
-                for (int n = 1; n >= 0; n--) {
+                bits = crc32_partial;
+                crc32_remainder = kbch - (offset - first_offset) - padding;
+                for (int n = 31; n >= crc32_remainder; n--) {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
-                /* Padding_bits */
-                for (int n = 3; n >= 0; n--) {
-                  out[offset++] = bits & (1 << n) ? 1 : 0;
-                }
-                memset(&out[offset], 0, kbch - (offset - first_offset) - padding);
-                offset += kbch - (offset - first_offset) - padding;
                 if (offset == (i + kbch) - padding) {
                   break;
                 }
