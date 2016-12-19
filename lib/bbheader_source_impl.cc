@@ -902,6 +902,9 @@ namespace gr {
                 }
               }
               else {
+                if (packet_length == length) {
+                  crc32_remainder = 0;
+                }
                 packet_ptr += length;
                 packet_length -= length;
                 crc32_partial = crc32_calc(ptr, length, crc32_partial);
