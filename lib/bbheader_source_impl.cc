@@ -329,7 +329,7 @@ namespace gr {
         pcap_close(descr);
         throw std::runtime_error("Error calling pcap_set_snaplen()\n");
       }
-      if (pcap_set_buffer_size(descr, 1024 * 1024) != 0) {
+      if (pcap_set_buffer_size(descr, 1024 * 1024 * 16) != 0) {
         pcap_close(descr);
         throw std::runtime_error("Error calling pcap_set_buffer_size()\n");
       }
