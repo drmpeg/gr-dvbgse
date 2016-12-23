@@ -72,6 +72,8 @@ namespace gr {
       int fec_blocks;
       int fec_block;
       int ts_rate;
+      int ping_reply_mode;
+      int ipaddr_spoof_mode;
       bool dvbs2x;
       bool alternate;
       bool nibble;
@@ -88,18 +90,21 @@ namespace gr {
       unsigned char frag_id;
       int crc32_partial;
       int crc32_remainder;
+      unsigned char src_addr[sizeof(in_addr)];
+      unsigned char dst_addr[sizeof(in_addr)];
       void add_bbheader(unsigned char *, int, int, bool);
       void build_crc8_table(void);
       int add_crc8_bits(unsigned char *, int);
       void add_inband_type_b(unsigned char *, int);
       void crc32_init(void);
       int crc32_calc(unsigned char *, int, int);
-      int checksum(unsigned short *, int);
+      int checksum(unsigned short *, int, int);
       inline void ping_reply(void);
+      inline void ipaddr_spoof(void);
       inline void dump_packet(unsigned char *);
 
      public:
-      bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address);
+      bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address);
       ~bbheader_source_impl();
 
       int work(int noutput_items,

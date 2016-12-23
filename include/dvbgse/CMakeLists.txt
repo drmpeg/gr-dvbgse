@@ -22,5 +22,6 @@
 ########################################################################
 install(FILES
     api.h
+    dvb_config.h
     bbheader_source.h DESTINATION include/dvbgse
 )

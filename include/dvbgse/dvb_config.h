@@ -130,6 +130,16 @@ namespace gr {
       INBAND_ON,
     };
 
+    enum dvbt2_ping_reply_t {
+      PING_REPLY_OFF = 0,
+      PING_REPLY_ON,
+    };
+
+    enum dvbt2_ipaddr_spoof_t {
+      IPADDR_SPOOF_OFF = 0,
+      IPADDR_SPOOF_ON,
+    };
+
   } // namespace dvbgse
 } // namespace gr
 
@@ -138,6 +148,8 @@ typedef gr::dvbgse::dvb_code_rate_t dvb_code_rate_t;
 typedef gr::dvbgse::dvb_framesize_t dvb_framesize_t;
 typedef gr::dvbgse::dvbs2_rolloff_factor_t dvbs2_rolloff_factor_t;
 typedef gr::dvbgse::dvbt2_inband_t dvbt2_inband_t;
+typedef gr::dvbgse::dvbt2_ping_reply_t dvbt2_ping_reply_t;
+typedef gr::dvbgse::dvbt2_ipaddr_spoof_t dvbt2_ipaddr_spoof_t;
 
 #endif /* INCLUDED_DVBGSE_CONFIG_H */
 

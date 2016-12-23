@@ -28,22 +28,21 @@
 #define DEFAULT_IF "tap0"
 #define FILTER "ether src "
 #undef DEBUG
-#define PING_REPLY
 
 namespace gr {
   namespace dvbgse {
 
     bbheader_source::sptr
-    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address)
+    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address)
     {
       return gnuradio::get_initial_sptr
-        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, mac_address));
+        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, mac_address, ping_reply, ipaddr_spoof, src_address, dst_address));
     }
 
     /*
      * The private constructor
      */
-    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address)
+    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address)
       : gr::sync_block("bbheader_source",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(unsigned char)))
@@ -62,6 +61,10 @@ namespace gr {
       alternate = TRUE;
       nibble = TRUE;
       frame_size = framesize;
+      ping_reply_mode = ping_reply;
+      ipaddr_spoof_mode = ipaddr_spoof;
+      inet_pton(AF_INET, src_address, &src_addr);
+      inet_pton(AF_INET, dst_address, &dst_addr);
       packet_fragmented = FALSE;
       last_packet_valid = FALSE;
       frag_id = 1;
@@ -540,10 +543,8 @@ namespace gr {
     }
 
     int
-    bbheader_source_impl::checksum(unsigned short *addr, int count)
+    bbheader_source_impl::checksum(unsigned short *addr, int count, int sum)
     {
-      int sum = 0;
-
       while (count > 1) {
         sum += *addr++;
         count -= 2;
@@ -559,20 +560,20 @@ namespace gr {
     inline void
     bbheader_source_impl::ping_reply(void)
     {
-#ifdef PING_REPLY
       unsigned short *csum_ptr;
       unsigned short header_length, total_length, type_code, fragment_offset;
       int csum;
       struct ip *ip_ptr;
       unsigned char *saddr_ptr, *daddr_ptr;
-      unsigned char addr[4];
+      unsigned char addr[sizeof(in_addr)];
 
       /* jam ping reply and calculate new checksum */
-      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header));
+      ip_ptr = (struct ip*)(packet + sizeof(struct ether_header));
+      csum_ptr = (unsigned short *)ip_ptr;
       header_length = (*csum_ptr & 0xf) * 4;
-      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + 2);
+      csum_ptr = &ip_ptr->ip_len;
       total_length = ((*csum_ptr & 0xff) << 8) | ((*csum_ptr & 0xff00) >> 8);
-      csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + 6);
+      csum_ptr = &ip_ptr->ip_off;
       fragment_offset = ((*csum_ptr & 0xff) << 8) | ((*csum_ptr & 0xff00) >> 8);
 
       csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip));
@@ -582,27 +583,64 @@ namespace gr {
         *csum_ptr++ = type_code;
         *csum_ptr = 0x0000;
         csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip));
-        csum = checksum(csum_ptr, total_length - header_length);
-        csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip) + 2);
+        csum = checksum(csum_ptr, total_length - header_length, 0);
+        csum_ptr++;
         *csum_ptr = csum;
       }
 
       /* swap IP adresses */
-      ip_ptr = (struct ip*)(packet + sizeof(struct ether_header));
       saddr_ptr = (unsigned char *)&ip_ptr->ip_src;
       daddr_ptr = (unsigned char *)&ip_ptr->ip_dst;
-      for (int i = 0; i < 4; i++) {
+      for (unsigned int i = 0; i < sizeof(in_addr); i++) {
         addr[i] = *daddr_ptr++;
       }
       daddr_ptr = (unsigned char *)&ip_ptr->ip_dst;
-      for (int i = 0; i < 4; i++) {
+      for (unsigned int i = 0; i < sizeof(in_addr); i++) {
         *daddr_ptr++ = *saddr_ptr++;
       }
       saddr_ptr = (unsigned char *)&ip_ptr->ip_src;
-      for (int i = 0; i < 4; i++) {
+      for (unsigned int i = 0; i < sizeof(in_addr); i++) {
         *saddr_ptr++ = addr[i];
       }
-#endif
+    }
+
+    inline void
+    bbheader_source_impl::ipaddr_spoof(void)
+    {
+      unsigned short *csum_ptr;
+      unsigned short header_length, fragment_offset;
+      int csum;
+      struct ip *ip_ptr;
+      unsigned char *saddr_ptr, *daddr_ptr;
+
+      ip_ptr = (struct ip*)(packet + sizeof(struct ether_header));
+
+      saddr_ptr = (unsigned char *)&ip_ptr->ip_src;
+      for (unsigned int i = 0; i < sizeof(in_addr); i++) {
+        *saddr_ptr++ = src_addr[i];
+      }
+
+      daddr_ptr = (unsigned char *)&ip_ptr->ip_dst;
+      for (unsigned int i = 0; i < sizeof(in_addr); i++) {
+        *daddr_ptr++ = dst_addr[i];
+      }
+
+      csum_ptr = (unsigned short *)ip_ptr;
+      header_length = (*csum_ptr & 0xf) * 4;
+      csum_ptr = &ip_ptr->ip_off;
+      fragment_offset = ((*csum_ptr & 0xff) << 8) | ((*csum_ptr & 0xff00) >> 8);
+
+      if ((fragment_offset & 0x1fff) == 0) {
+        csum_ptr = &ip_ptr->ip_sum;
+        *csum_ptr = 0x0000;
+        csum_ptr = (unsigned short *)ip_ptr;
+        csum = checksum(csum_ptr, header_length, 0);
+        csum_ptr = &ip_ptr->ip_sum;
+        *csum_ptr = csum;
+
+        csum_ptr = (unsigned short *)(packet + sizeof(struct ether_header) + sizeof(struct ip) + 6);
+        *csum_ptr = 0x0000;
+      }
     }
 
     inline void
@@ -684,7 +722,12 @@ namespace gr {
                   out[offset++] = bits & (1 << n) ? 1 : 0;
                 }
 
-                ping_reply();
+                if (ping_reply_mode) {
+                  ping_reply();
+                }
+                if (ipaddr_spoof_mode) {
+                  ipaddr_spoof();
+                }
 
                 eptr = (struct ether_header *)packet;
                 /* Protocol_Type */
@@ -749,7 +792,12 @@ namespace gr {
                     out[offset++] = bits & (1 << n) ? 1 : 0;
                   }
 
-                  ping_reply();
+                  if (ping_reply_mode) {
+                    ping_reply();
+                  }
+                  if (ipaddr_spoof_mode) {
+                    ipaddr_spoof();
+                  }
 
                   eptr = (struct ether_header *)packet;
                   /* Protocol_Type */

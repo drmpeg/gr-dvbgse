@@ -30,7 +30,7 @@ $rate4.val, #slurp
 $rate5.val, #slurp
 #end if
 #end if
-$rolloff.val, $inband.val, $fecblocks, $tsrate, $mac_address)</make>
+$rolloff.val, $inband.val, $fecblocks, $tsrate, $mac_address, $ping_reply.val, $ipaddr_spoof.val, $src_address, $dst_address)</make>
   <param>
     <name>Standard</name>
     <key>standard</key>
@@ -575,6 +575,52 @@ $rolloff.val, $inband.val, $fecblocks, $tsrate, $mac_address)</make>
     <key>mac_address</key>
     <value></value>
     <type>string</type>
+  </param>
+  <param>
+    <name>Ping Reply</name>
+    <key>ping_reply</key>
+    <type>enum</type>
+    <option>
+      <name>Off</name>
+      <key>PING_REPLY_OFF</key>
+      <opt>val:dvbgse.PING_REPLY_OFF</opt>
+    </option>
+    <option>
+      <name>On</name>
+      <key>PING_REPLY_ON</key>
+      <opt>val:dvbgse.PING_REPLY_ON</opt>
+    </option>
+  </param>
+  <param>
+    <name>UDP IP Address Spoofing</name>
+    <key>ipaddr_spoof</key>
+    <type>enum</type>
+    <option>
+      <name>Off</name>
+      <key>IPADDR_SPOOF_OFF</key>
+      <opt>val:dvbgse.IPADDR_SPOOF_OFF</opt>
+      <opt>hide_ipaddr:all</opt>
+    </option>
+    <option>
+      <name>On</name>
+      <key>IPADDR_SPOOF_ON</key>
+      <opt>val:dvbgse.IPADDR_SPOOF_ON</opt>
+      <opt>hide_ipaddr:</opt>
+    </option>
+  </param>
+  <param>
+    <name>Source IP Address</name>
+    <key>src_address</key>
+    <value></value>
+    <type>string</type>
+    <hide>$ipaddr_spoof.hide_ipaddr</hide>
+  </param>
+  <param>
+    <name>Destination IP Address</name>
+    <key>dst_address</key>
+    <value></value>
+    <type>string</type>
+    <hide>$ipaddr_spoof.hide_ipaddr</hide>
   </param>
   <source>
     <name>out</name>
