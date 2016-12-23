@@ -63,6 +63,9 @@ sudo ip link set tap0 up
 
 sudo ip link set tap0 arp off
 
+The MAC address must match the MAC address used in the flow graph
+(if you chose to use a different address).
+
 To forward packets received in the tap0 IP address range
 to the default network interface (replace eth0 with your
 default device name):
@@ -71,9 +74,41 @@ sudo sysctl -w net.ipv4.conf.all.rp_filter=0
 
 sudo sysctl -w net.ipv4.conf.eth0.rp_filter=0
 
+Note: This is required for the ping reply test feature
+described below:
+
 To delete the TAP interface:
 
 sudo ip tuntap del dev tap0 mode tap
+
+Testing features:
+
+In order to test this block with just a single transmitter and
+receiver, two optional testing modes are available.
+
+The first is a ping reply feature. In this mode, the block modifies
+incoming ping requests into ping replies and swaps the source
+and destination IP addresses. This allows a normal ping command
+to complete. Ping packets are very useful for testing since the
+size and rate can be adjusted. Also, packet latency can be easily
+measured.
+
+The second feature is IP address spoofing for UDP packets. In this
+mode the block modifies the source and destination IP address of
+UDP packets to selected values. This allows for a loopback test
+of video/audio over RTP using VLC. The destination IP address is
+set to the host that the VLC RTP decoder is running on. Video is
+useful for testing since dropped packets will cause bit-stream
+error (that VLC will report if you start it on the command line).
+
+Here's what my video loopback flow looks like:
+
+VLC RTP streaming to 44.0.0.3 -> tap0 interface -> DVB-GSE block ->
+GNU Radio DVB-S2 transmitter -> Ettus B210 -> 40 dB attenuator ->
+Ayecka SR1 receiver -> eth0 -> VLC RTP decoder from host address.
+
+Both of the features should be shut off for normal full-duplex
+operation.
 
 Dependencies:
 
