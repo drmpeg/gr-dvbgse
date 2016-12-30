@@ -89,7 +89,6 @@ namespace gr {
       const unsigned char *packet;
       unsigned char frag_id;
       int crc32_partial;
-      int crc32_remainder;
       unsigned char src_addr[sizeof(in_addr)];
       unsigned char dst_addr[sizeof(in_addr)];
       void add_bbheader(unsigned char *, int, int, bool);
