@@ -57,7 +57,7 @@ sudo ip tuntap add dev tap0 mode tap
 
 sudo ip link set dev tap0 address 02:00:48:55:4c:4b
 
-sudo ip addr add 44.0.0.1/24 dev tap0
+sudo ip addr add 44.0.0.1/24 broadcast 44.0.0.255 dev tap0
 
 sudo ip link set tap0 up
 
@@ -99,7 +99,7 @@ UDP packets to selected values. This allows for a loopback test
 of video/audio over RTP using VLC. The destination IP address is
 set to the host that the VLC RTP decoder is running on. Video is
 useful for testing since dropped packets will cause bit-stream
-error (that VLC will report if you start it on the command line).
+errors (that VLC will report if you start it on the command line).
 
 Here's what my video loopback flow looks like:
 
