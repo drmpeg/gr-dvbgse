@@ -29,6 +29,7 @@
 #include <netinet/ip.h>
 #include <net/if.h>
 #include <linux/if_tun.h>
+#include <fcntl.h>
 
 #define START_INDICATOR_SIZE 1
 #define END_INDICATOR_SIZE 1
