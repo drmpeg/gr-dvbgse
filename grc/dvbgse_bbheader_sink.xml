@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
 <!--
 ###################################################
-## DVB-GSE Baseband Header Source
+## DVB-GSE Baseband Header Sink
 ###################################################
  -->
 <block>
-  <name>IP Packet Source</name>
-  <key>dvbgse_bbheader_source</key>
+  <name>IP Packet Sink</name>
+  <key>dvbgse_bbheader_sink</key>
   <category>[Core]/Digital Television/DVB-GSE</category>
   <import>import dvbgse</import>
-  <make>dvbgse.bbheader_source($standard.val, #slurp)
+  <make>dvbgse.bbheader_sink($standard.val, #slurp)
 #if str($standard) == 'STANDARD_DVBT2'
 $framesize1.val, #slurp
 #else
@@ -30,7 +30,7 @@ $rate4.val, #slurp
 $rate5.val, #slurp
 #end if
 #end if
-$rolloff.val, $inband.val, $fecblocks, $tsrate, $mac_address, $ping_reply.val, $ipaddr_spoof.val, $src_address, $dst_address)</make>
+)</make>
   <param>
     <name>Standard</name>
     <key>standard</key>
@@ -502,128 +502,8 @@ $rolloff.val, $inband.val, $fecblocks, $tsrate, $mac_address, $ping_reply.val, $
       <opt>val:dvbgse.C1_3_VLSNR</opt>
     </option>
   </param>
-  <param>
-    <name>Rolloff factor</name>
-    <key>rolloff</key>
-    <type>enum</type>
-    <hide>$standard.hide_dvbs2</hide>
-    <option>
-      <name>0.35</name>
-      <key>RO_0_35</key>
-      <opt>val:dvbgse.RO_0_35</opt>
-    </option>
-    <option>
-      <name>0.25</name>
-      <key>RO_0_25</key>
-      <opt>val:dvbgse.RO_0_25</opt>
-    </option>
-    <option>
-      <name>0.20</name>
-      <key>RO_0_20</key>
-      <opt>val:dvbgse.RO_0_20</opt>
-    </option>
-    <option>
-      <name>0.15</name>
-      <key>RO_0_15</key>
-      <opt>val:dvbgse.RO_0_15</opt>
-    </option>
-    <option>
-      <name>0.10</name>
-      <key>RO_0_10</key>
-      <opt>val:dvbgse.RO_0_10</opt>
-    </option>
-    <option>
-      <name>0.05</name>
-      <key>RO_0_05</key>
-      <opt>val:dvbgse.RO_0_05</opt>
-    </option>
-  </param>
-  <param>
-    <name>In-band Signalling</name>
-    <key>inband</key>
-    <type>enum</type>
-    <hide>$standard.hide_dvbt2</hide>
-    <option>
-      <name>Off</name>
-      <key>INBAND_OFF</key>
-      <opt>val:dvbgse.INBAND_OFF</opt>
-      <opt>hide_rate:all</opt>
-    </option>
-    <option>
-      <name>Type B</name>
-      <key>INBAND_ON</key>
-      <opt>val:dvbgse.INBAND_ON</opt>
-      <opt>hide_rate:</opt>
-    </option>
-  </param>
-  <param>
-    <name>FEC blocks per frame</name>
-    <key>fecblocks</key>
-    <value>168</value>
-    <type>int</type>
-    <hide>$inband.hide_rate</hide>
-  </param>
-  <param>
-    <name>Transport Stream Rate</name>
-    <key>tsrate</key>
-    <value>4000000</value>
-    <type>int</type>
-    <hide>$inband.hide_rate</hide>
-  </param>
-  <param>
-    <name>MAC Address</name>
-    <key>mac_address</key>
-    <value></value>
-    <type>string</type>
-  </param>
-  <param>
-    <name>Ping Reply</name>
-    <key>ping_reply</key>
-    <type>enum</type>
-    <option>
-      <name>Off</name>
-      <key>PING_REPLY_OFF</key>
-      <opt>val:dvbgse.PING_REPLY_OFF</opt>
-    </option>
-    <option>
-      <name>On</name>
-      <key>PING_REPLY_ON</key>
-      <opt>val:dvbgse.PING_REPLY_ON</opt>
-    </option>
-  </param>
-  <param>
-    <name>UDP IP Address Spoofing</name>
-    <key>ipaddr_spoof</key>
-    <type>enum</type>
-    <option>
-      <name>Off</name>
-      <key>IPADDR_SPOOF_OFF</key>
-      <opt>val:dvbgse.IPADDR_SPOOF_OFF</opt>
-      <opt>hide_ipaddr:all</opt>
-    </option>
-    <option>
-      <name>On</name>
-      <key>IPADDR_SPOOF_ON</key>
-      <opt>val:dvbgse.IPADDR_SPOOF_ON</opt>
-      <opt>hide_ipaddr:</opt>
-    </option>
-  </param>
-  <param>
-    <name>Source IP Address</name>
-    <key>src_address</key>
-    <value></value>
-    <type>string</type>
-    <hide>$ipaddr_spoof.hide_ipaddr</hide>
-  </param>
-  <param>
-    <name>Destination IP Address</name>
-    <key>dst_address</key>
-    <value></value>
-    <type>string</type>
-    <hide>$ipaddr_spoof.hide_ipaddr</hide>
-  </param>
-  <source>
-    <name>out</name>
+  <sink>
+    <name>in</name>
     <type>byte</type>
-  </source>
+  </sink>
 </block>

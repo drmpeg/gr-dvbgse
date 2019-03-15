@@ -18,5 +18,6 @@
 # Boston, MA 02110-1301, USA.
 
 install(FILES
-    dvbgse_bbheader_source.xml DESTINATION share/gnuradio/grc/blocks
+    dvbgse_bbheader_source.xml
+    dvbgse_bbheader_sink.xml DESTINATION share/gnuradio/grc/blocks
 )

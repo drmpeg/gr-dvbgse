@@ -1,6 +1,6 @@
 /* -*- c++ -*- */
 /* 
- * Copyright 2016 Ron Economos.
+ * Copyright 2019 Ron Economos.
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef INCLUDED_DVBGSE_BBHEADER_SOURCE_H
-#define INCLUDED_DVBGSE_BBHEADER_SOURCE_H
+#ifndef INCLUDED_DVBGSE_BBHEADER_SINK_H
+#define INCLUDED_DVBGSE_BBHEADER_SINK_H
 
 #include <dvbgse/api.h>
 #include <dvbgse/dvb_config.h>
@@ -33,24 +33,24 @@ namespace gr {
      * \ingroup dvbgse
      *
      */
-    class DVBGSE_API bbheader_source : virtual public gr::sync_block
+    class DVBGSE_API bbheader_sink : virtual public gr::sync_block
     {
      public:
-      typedef boost::shared_ptr<bbheader_source> sptr;
+      typedef boost::shared_ptr<bbheader_sink> sptr;
 
       /*!
-       * \brief Return a shared_ptr to a new instance of dvbgse::bbheader_source.
+       * \brief Return a shared_ptr to a new instance of dvbgse::bbheader_sink.
        *
-       * To avoid accidental use of raw pointers, dvbgse::bbheader_source's
+       * To avoid accidental use of raw pointers, dvbgse::bbheader_sink's
        * constructor is in a private implementation
-       * class. dvbgse::bbheader_source::make is the public interface for
+       * class. dvbgse::bbheader_sink::make is the public interface for
        * creating new instances.
        */
-      static sptr make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address);
+      static sptr make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate);
     };
 
   } // namespace dvbgse
 } // namespace gr
 
-#endif /* INCLUDED_DVBGSE_BBHEADER_SOURCE_H */
+#endif /* INCLUDED_DVBGSE_BBHEADER_SINK_H */
 

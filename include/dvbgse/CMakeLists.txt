@@ -23,5 +23,6 @@
 install(FILES
     api.h
     dvb_config.h
-    bbheader_source.h DESTINATION include/dvbgse
+    bbheader_source.h
+    bbheader_sink.h DESTINATION include/dvbgse
 )

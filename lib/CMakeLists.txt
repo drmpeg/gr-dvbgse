@@ -27,6 +27,7 @@ link_directories(${Boost_LIBRARY_DIRS})
 
 list(APPEND dvbgse_sources
     bbheader_source_impl.cc
+    bbheader_sink_impl.cc
 )
 
 set(dvbgse_sources "${dvbgse_sources}" PARENT_SCOPE)
