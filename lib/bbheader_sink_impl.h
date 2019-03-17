@@ -61,6 +61,7 @@ namespace gr {
       int crc32_partial;
       FrameFormat m_format[1];
       int fd;
+      unsigned char tap_mac_address[6];
       unsigned int crc32_table[256];
       unsigned char packet[4096];
       unsigned char *packet_alloc[256];
@@ -71,7 +72,7 @@ namespace gr {
       int crc32_calc(unsigned char *, int, int);
 
      public:
-      bbheader_sink_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate);
+      bbheader_sink_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, char *mac_address);
       ~bbheader_sink_impl();
 
       // Where all the action really happens

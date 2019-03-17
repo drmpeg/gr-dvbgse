@@ -32,22 +32,23 @@ namespace gr {
   namespace dvbgse {
 
     bbheader_sink::sptr
-    bbheader_sink::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate)
+    bbheader_sink::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, char *mac_address)
     {
       return gnuradio::get_initial_sptr
-        (new bbheader_sink_impl(standard, framesize, rate));
+        (new bbheader_sink_impl(standard, framesize, rate, mac_address));
     }
 
     /*
      * The private constructor
      */
-    bbheader_sink_impl::bbheader_sink_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate)
+    bbheader_sink_impl::bbheader_sink_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, char *mac_address)
       : gr::sync_block("bbheader_sink",
               gr::io_signature::make(1, 1, sizeof(unsigned char)),
               gr::io_signature::make(0, 0, 0))
     {
       struct ifreq ifr;
       int err;
+      int tmp[6];
       if (framesize == FECFRAME_NORMAL) {
         switch (rate) {
           case C1_4:
@@ -271,6 +272,14 @@ namespace gr {
         throw std::runtime_error("Error calling ioctl()\n");
       }
 
+      if (6 == sscanf(mac_address, "%x:%x:%x:%x:%x:%x%*c", &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5])) {
+        for (int i = 0; i < 6; i++) {
+          tap_mac_address[i] = (unsigned char)tmp[i];
+        }
+      }
+      else {
+        throw std::runtime_error("Error calling sscanf(), malformed MAC Address\n");
+      }
       set_output_multiple(kbch);
     }
 
@@ -482,7 +491,7 @@ namespace gr {
                 packet[index++] = label[j];
               }
               for (unsigned int j = 0; j < ETHER_ADDR_LEN; j++) {
-                packet[index++] = label[j];
+                packet[index++] = tap_mac_address[j];
               }
               packet[index++] = protocol_type[0];
               packet[index++] = protocol_type[1];
@@ -509,7 +518,7 @@ namespace gr {
                   index++;
                 }
                 for (unsigned int j = 0; j < ETHER_ADDR_LEN; j++) {
-                  *packet_ptr[frag_id]++ = label[j];
+                  *packet_ptr[frag_id]++ = tap_mac_address[j];
                   index++;
                 }
                 *packet_ptr[frag_id]++ = protocol_type[0];

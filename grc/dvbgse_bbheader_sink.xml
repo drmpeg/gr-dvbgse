@@ -30,7 +30,7 @@ $rate4.val, #slurp
 $rate5.val, #slurp
 #end if
 #end if
-)</make>
+$mac_address)</make>
   <param>
     <name>Standard</name>
     <key>standard</key>
@@ -501,6 +501,12 @@ $rate5.val, #slurp
       <key>C1_3_VLSNR</key>
       <opt>val:dvbgse.C1_3_VLSNR</opt>
     </option>
+  </param>
+  <param>
+    <name>MAC Address</name>
+    <key>mac_address</key>
+    <value></value>
+    <type>string</type>
   </param>
   <sink>
     <name>in</name>
