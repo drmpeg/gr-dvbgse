@@ -367,7 +367,7 @@ namespace gr {
         check = check_crc8_bits(in, BB_HEADER_LENGTH_BITS + 8);
         if (check != 0) {
           synched = FALSE;
-          printf("Baseband header crc failed.\n");
+          fprintf(stderr, "Baseband header crc failed.\n");
           in += kbch;
         }
         else {
@@ -437,7 +437,6 @@ namespace gr {
               length = (total_length[0] & 0xff) << 8;
               length |= (total_length[1] & 0xff);
               length += ETHER_ADDR_LEN;
-              printf("id = %d, length = %d\n", frag_id, length);
               packet_alloc[frag_id] = (unsigned char*) malloc(sizeof(unsigned char) * length);
               packet_ptr[frag_id] = packet_alloc[frag_id];
               packet_ttl[frag_id] = 10;
@@ -485,7 +484,6 @@ namespace gr {
               }
             }
             if (start_indicator == 1 && end_indicator == 1) {
-              printf("gse length full = %d\n", gse_length);
               index = 0;
               for (unsigned int j = 0; j < ETHER_ADDR_LEN; j++) {
                 packet[index++] = label[j];
@@ -505,12 +503,10 @@ namespace gr {
               }
               status = write(fd, &packet[0], index);
               if (status < 0) {
-                printf("Write Error\n");
+                fprintf(stderr, "Write Error\n");
               }
-              printf("length out full = %d\n", h->dfl);
             }
             else if (start_indicator == 1 && end_indicator == 0) {
-              printf("gse length start = %d\n", gse_length);
               if (packet_ptr[frag_id]) {
                 index = 0;
                 for (unsigned int j = 0; j < ETHER_ADDR_LEN; j++) {
@@ -542,10 +538,8 @@ namespace gr {
                   index++;
                 }
               }
-              printf("length out start = %d\n", h->dfl);
             }
             else if (start_indicator == 0 && end_indicator == 0) {
-              printf("gse length continuation = %d\n", gse_length);
               if (packet_ptr[frag_id]) {
                 packet_ptr_save = packet_ptr[frag_id];
                 for (unsigned int j = 0; j < gse_length; j++) {
@@ -560,16 +554,14 @@ namespace gr {
                 crc32_partial = crc32_calc(&packet_ptr_save[0], gse_length, crc32_partial);
               }
               else {
-                printf("no buffer available!\n");
+                fprintf(stderr, "no buffer available!\n");
                 for (unsigned int j = 0; j < gse_length; j++) {
                   h->dfl -= 8;
                   index++;
                 }
               }
-              printf("length out continuation = %d\n", h->dfl);
             }
             else if (start_indicator == 0 && end_indicator == 1) {
-              printf("gse length end = %d\n", gse_length);
               if (packet_ptr[frag_id]) {
                 packet_ptr_save = packet_ptr[frag_id];
                 for (unsigned int j = 0; j < gse_length - 4; j++) {
@@ -594,22 +586,20 @@ namespace gr {
                 if (crc32_partial == 0) {
                   status = write(fd, packet_alloc[frag_id], index);
                   if (status < 0) {
-                    printf("Write Error\n");
+                    fprintf(stderr, "Write Error\n");
                   }
-                  printf("length out end = %d\n", h->dfl);
                 }
                 else {
-                  printf("crc error!\n");
+                  fprintf(stderr, "crc error!\n");
                 }
                 if (packet_alloc[frag_id]) {
                   free(packet_alloc[frag_id]);
                   packet_alloc[frag_id] = NULL;
                   packet_ptr[frag_id] = NULL;
                   packet_ttl[frag_id] = 0;
-                  printf("free = %d\n", index);
                 }
                 else {
-                  printf("free error!\n");
+                  fprintf(stderr, "free error!\n");
                 }
               }
               else {
@@ -620,22 +610,20 @@ namespace gr {
               }
             }
           }
-          if (padding != 2992)
-            printf("padding = %d\n\n", padding);
           in += padding;
         }
         for (int n = 0; n < 256; n++) {
           if (packet_ttl[n] != 0) {
             packet_ttl[n]--;
             if (packet_ttl[n] == 0) {
-              printf("buffer %d timeout!\n", n);
+              fprintf(stderr, "buffer %d timeout!\n", n);
               if (packet_alloc[n]) {
                 free(packet_alloc[n]);
                 packet_alloc[n] = NULL;
                 packet_ptr[n] = NULL;
               }
               else {
-                printf("free error!\n");
+                fprintf(stderr, "free error!\n");
               }
             }
           }
