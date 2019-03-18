@@ -252,7 +252,7 @@ namespace gr {
       }
       crc32_init();
       for (int i = 0; i < 256; i++) {
-        packet_alloc[i] = NULL;
+        packet_alloc[i] = FALSE;
         packet_ptr[i] = NULL;
         packet_ttl[i] = 0;
       }
@@ -288,11 +288,6 @@ namespace gr {
      */
     bbheader_sink_impl::~bbheader_sink_impl()
     {
-      for (int i = 0; i < 256; i++) {
-        if (packet_alloc[i] != NULL) {
-          free(packet_alloc[i]);
-        }
-      }
       if (fd) {
         close(fd);
       }
@@ -352,7 +347,8 @@ namespace gr {
         gr_vector_void_star &output_items)
     {
       const unsigned char *in = (const unsigned char *) input_items[0];
-      unsigned int check, padding, length, temp;
+      unsigned char *start;
+      unsigned int check, length, temp;
       unsigned int start_indicator, end_indicator, label_type_indicator;
       unsigned int gse_length, frag_id = 0;
       unsigned char total_length[2] = {0};
@@ -363,7 +359,9 @@ namespace gr {
       BBHeader *h = &m_format[0].bb_header;
       int status;
 
+
       for (int i = 0; i < noutput_items; i += kbch) {
+        start = (unsigned char *)in;
         check = check_crc8_bits(in, BB_HEADER_LENGTH_BITS + 8);
         if (check != 0) {
           synched = FALSE;
@@ -405,8 +403,7 @@ namespace gr {
             h->syncd |= *in++ << n;
           }
           in += 8;
-          padding = kbch - h->dfl - (BB_HEADER_LENGTH_BITS + 8);
-          while (h->dfl) {
+          while (h->dfl > 0) {
             start_indicator = *in++;
             end_indicator = *in++;
             label_type_indicator = *in++ << 1;
@@ -437,9 +434,14 @@ namespace gr {
               length = (total_length[0] & 0xff) << 8;
               length |= (total_length[1] & 0xff);
               length += ETHER_ADDR_LEN;
-              packet_alloc[frag_id] = (unsigned char*) malloc(sizeof(unsigned char) * length);
-              packet_ptr[frag_id] = packet_alloc[frag_id];
-              packet_ttl[frag_id] = 10;
+              if (packet_alloc[frag_id] == FALSE) {
+                packet_alloc[frag_id] = TRUE;
+                packet_ptr[frag_id] = &packet_pool[frag_id][0];
+                packet_ttl[frag_id] = 10;
+              }
+              else {
+                fprintf(stderr, "s=1, e=0, no buffer to malloc!\n");
+              }
               h->dfl -= 16;
               gse_length -= 2;
             }
@@ -533,6 +535,7 @@ namespace gr {
                 crc32_partial = crc32_calc(&packet_ptr_save[0], gse_length, crc32_partial);
               }
               else {
+                fprintf(stderr, "s=1, e=0, no buffer available = %d\n", frag_id);
                 for (unsigned int j = 0; j < gse_length; j++) {
                   h->dfl -= 8;
                   index++;
@@ -554,7 +557,7 @@ namespace gr {
                 crc32_partial = crc32_calc(&packet_ptr_save[0], gse_length, crc32_partial);
               }
               else {
-                fprintf(stderr, "no buffer available!\n");
+                fprintf(stderr, "s=0, e=0, no buffer available= %d\n", frag_id);
                 for (unsigned int j = 0; j < gse_length; j++) {
                   h->dfl -= 8;
                   index++;
@@ -584,7 +587,7 @@ namespace gr {
                 }
                 crc32_partial = crc32_calc(&crc[0], 4, crc32_partial);
                 if (crc32_partial == 0) {
-                  status = write(fd, packet_alloc[frag_id], index);
+                  status = write(fd, &packet_pool[frag_id][0], index);
                   if (status < 0) {
                     fprintf(stderr, "Write Error\n");
                   }
@@ -593,16 +596,16 @@ namespace gr {
                   fprintf(stderr, "crc error!\n");
                 }
                 if (packet_alloc[frag_id]) {
-                  free(packet_alloc[frag_id]);
-                  packet_alloc[frag_id] = NULL;
+                  packet_alloc[frag_id] = FALSE;
                   packet_ptr[frag_id] = NULL;
                   packet_ttl[frag_id] = 0;
                 }
                 else {
-                  fprintf(stderr, "free error!\n");
+                  fprintf(stderr, "dealloc error!\n");
                 }
               }
               else {
+                fprintf(stderr, "s=0, e=1, no buffer available = %d\n", frag_id);
                 for (unsigned int j = 0; j < gse_length; j++) {
                   h->dfl -= 8;
                   index++;
@@ -610,7 +613,7 @@ namespace gr {
               }
             }
           }
-          in += padding;
+          in = start + kbch;
         }
         for (int n = 0; n < 256; n++) {
           if (packet_ttl[n] != 0) {
@@ -618,12 +621,11 @@ namespace gr {
             if (packet_ttl[n] == 0) {
               fprintf(stderr, "buffer %d timeout!\n", n);
               if (packet_alloc[n]) {
-                free(packet_alloc[n]);
-                packet_alloc[n] = NULL;
+                packet_alloc[n] = FALSE;
                 packet_ptr[n] = NULL;
               }
               else {
-                fprintf(stderr, "free error!\n");
+                fprintf(stderr, "dealloc error!\n");
               }
             }
           }

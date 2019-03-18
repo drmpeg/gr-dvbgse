@@ -64,8 +64,9 @@ namespace gr {
       unsigned char tap_mac_address[6];
       unsigned int crc32_table[256];
       unsigned char packet[4096];
-      unsigned char *packet_alloc[256];
+      unsigned char packet_pool[256][4096];
       unsigned char *packet_ptr[256];
+      unsigned int packet_alloc[256];
       unsigned int packet_ttl[256];
       unsigned int check_crc8_bits(const unsigned char *, int);
       void crc32_init(void);
