@@ -852,7 +852,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1016, 468)</value>
+      <value>(1016, 464)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -861,6 +861,10 @@
     <param>
       <key>id</key>
       <value>dvbgse_bbheader_sink_0</value>
+    </param>
+    <param>
+      <key>mac_address</key>
+      <value>02:00:48:55:4c:55</value>
     </param>
     <param>
       <key>standard</key>
@@ -903,7 +907,7 @@
     </param>
     <param>
       <key>dst_address</key>
-      <value>44.0.1.1</value>
+      <value></value>
     </param>
     <param>
       <key>_enabled</key>
@@ -923,7 +927,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(176, 8)</value>
+      <value>(208, 8)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -951,7 +955,7 @@
     </param>
     <param>
       <key>ping_reply</key>
-      <value>PING_REPLY_OFF</value>
+      <value>PING_REPLY_ON</value>
     </param>
     <param>
       <key>rolloff</key>
@@ -959,7 +963,7 @@
     </param>
     <param>
       <key>src_address</key>
-      <value>44.0.0.2</value>
+      <value></value>
     </param>
     <param>
       <key>standard</key>
