@@ -23,7 +23,7 @@ gr-dvbgse
 Author: Ron Economos
 Email: <w6rz@comcast.net>
 
-The goal of this project is to build a GNU Radio block that implements
+The goal of this project is to build GNU Radio blocks that implement
 the ETSI TS 102 606-1 V1.2.1 Generic Stream Encapsulation standard:
 
 http://www.etsi.org/deliver/etsi_ts/102600_102699/10260601/01.02.01_60/ts_10260601v010201p.pdf
@@ -109,6 +109,42 @@ Ayecka SR1 receiver -> eth0 -> VLC RTP decoder from host address.
 
 Both of the features should be shut off for normal full-duplex
 operation.
+
+Update 03/20/2019: A DVB-GSE sink block has been added for support
+of a future DVB-S2 receiver in GNU Radio. The sink block can be
+tested with the flow graph dvbs2_rxip.grc in the /apps directory.
+This flow graph depends on the DVB-S2 receiver block in gr-dvbs2rx.
+
+https://github.com/drmpeg/gr-dvbs2rx
+
+The test flow requires two TAP interfaces to be configured:
+
+sudo ip tuntap add dev tap0 mode tap
+sudo ip link set dev tap0 address 02:00:48:55:4c:55
+sudo ip addr add 44.0.0.1/24 broadcast 44.0.0.255 dev tap0
+sudo ip link set tap0 up
+sudo ip link set tap0 arp off
+
+sudo ip tuntap add dev tap1 mode tap
+sudo ip link set dev tap1 address 02:00:48:55:4c:55
+sudo ip addr add 44.0.1.1/24 broadcast 44.0.1.255 dev tap1
+sudo ip link set tap1 up
+sudo ip link set tap1 arp off
+
+sudo sysctl -w net.ipv4.conf.all.rp_filter=0
+sudo sysctl -w net.ipv4.conf.tap1.rp_filter=0
+
+Traffic can be generated with ping packets.
+
+ping 44.0.0.2
+
+Throughput can be tested with a ping flood. Adjust the size parameter
+(-s 3300) to control the rate. The printed dots should be relatively
+stable, If the dots increase slowly (or quickly) you're going faster
+than the simulated link can handle (and the size parameter should be
+reduced). -s 3300 corresponds to a rate of about 4 Mbps.
+
+sudo ping 44.0.0.2 -f -i 0.001 -c 5000 -s 3300
 
 Dependencies:
 
