@@ -2,7 +2,7 @@
 
 #define DVBGSE_API
 
-%include "gnuradio.i"			// the common stuff
+%include "gnuradio.i"           // the common stuff
 
 //load generated python docstrings
 %include "dvbgse_swig_doc.i"
@@ -12,7 +12,6 @@
 #include "dvbgse/bbheader_source.h"
 #include "dvbgse/bbheader_sink.h"
 %}
-
 
 %include "dvbgse/dvb_config.h"
 %include "dvbgse/bbheader_source.h"
