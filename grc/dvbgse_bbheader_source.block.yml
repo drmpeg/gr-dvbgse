@@ -130,9 +130,6 @@ parameters:
     dtype: int
     default: '4000000'
     hide: ${ inband.hide_rate }
--   id: mac_address
-    label: MAC Address
-    dtype: string
 -   id: ping_reply
     label: Ping Reply
     dtype: enum
@@ -169,7 +166,7 @@ templates:
         \ \n% else:\n${rate2.val}, \n% endif\n% else:\n% if str(framesize2) == 'FECFRAME_NORMAL':\n\
         ${rate3.val}, \n% elif str(framesize2) == 'FECFRAME_MEDIUM':\n${rate4.val},\
         \ \n% else:\n${rate5.val}, \n% endif\n% endif\n${rolloff.val}, ${inband.val},\
-        \ ${fecblocks}, ${tsrate}, ${mac_address}, ${ping_reply.val}, ${ipaddr_spoof.val},\
+        \ ${fecblocks}, ${tsrate}, ${ping_reply.val}, ${ipaddr_spoof.val},\
         \ ${src_address}, ${dst_address})"
 
 file_format: 1
