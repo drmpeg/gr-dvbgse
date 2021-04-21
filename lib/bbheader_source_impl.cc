@@ -33,16 +33,16 @@ namespace gr {
   namespace dvbgse {
 
     bbheader_source::sptr
-    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address)
+    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address)
     {
       return gnuradio::get_initial_sptr
-        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, mac_address, ping_reply, ipaddr_spoof, src_address, dst_address));
+        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, ping_reply, ipaddr_spoof, src_address, dst_address));
     }
 
     /*
      * The private constructor
      */
-    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, char *mac_address, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address)
+    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address)
       : gr::sync_block("bbheader_source",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(unsigned char)))
@@ -54,6 +54,10 @@ namespace gr {
       char filter[50];
       struct ifreq ifr;
       int err;
+      int fdmac;
+      struct ifreq ifrmac;
+      unsigned char *mac;
+      char mac_address[18];
 
       count = 0;
       crc = 0x0;
@@ -312,6 +316,15 @@ namespace gr {
         close(fd);
         throw std::runtime_error("Error calling ioctl()\n");
       }
+
+      fdmac = socket(AF_INET, SOCK_DGRAM, 0);
+      ifrmac.ifr_addr.sa_family = AF_INET;
+      strncpy(ifrmac.ifr_name , DEFAULT_IF , IFNAMSIZ-1);
+      ioctl(fdmac, SIOCGIFHWADDR, &ifrmac);
+      close(fdmac);
+
+      mac = (unsigned char *)ifrmac.ifr_hwaddr.sa_data;
+      snprintf(mac_address, sizeof(mac_address), "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x" , mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
       strcpy(dev, DEFAULT_IF);
       descr = pcap_create(dev, errbuf);
