@@ -287,7 +287,6 @@ blocks:
     comment: ''
     framesize1: FECFRAME_NORMAL
     framesize2: FECFRAME_SHORT
-    mac_address: 02:00:48:55:4c:55
     rate1: C1_2
     rate2: C1_3
     rate3: C2_3
@@ -298,7 +297,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1024, 420.0]
+    coordinate: [1024, 428.0]
     rotation: 0
     state: enabled
 - name: dvbgse_bbheader_source_0
@@ -313,7 +312,6 @@ blocks:
     framesize2: FECFRAME_SHORT
     inband: INBAND_OFF
     ipaddr_spoof: IPADDR_SPOOF_OFF
-    mac_address: 02:00:48:55:4c:55
     maxoutbuf: '0'
     minoutbuf: '0'
     ping_reply: PING_REPLY_ON
@@ -330,7 +328,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [208, 12.0]
+    coordinate: [208, 20.0]
     rotation: 0
     state: enabled
 - name: dvbs2rx_bbdescrambler_bb_0
