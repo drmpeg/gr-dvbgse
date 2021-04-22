@@ -36,7 +36,7 @@ namespace gr {
     class DVBGSE_API bbheader_sink : virtual public gr::sync_block
     {
      public:
-      typedef boost::shared_ptr<bbheader_sink> sptr;
+      typedef std::shared_ptr<bbheader_sink> sptr;
 
       /*!
        * \brief Return a shared_ptr to a new instance of dvbgse::bbheader_sink.
