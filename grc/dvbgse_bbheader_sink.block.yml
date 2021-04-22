@@ -102,9 +102,6 @@ parameters:
             dvbgse.C1_3_VLSNR]
     hide: ${ (framesize2.hide_short if str(standard) == 'STANDARD_DVBS2' else 'all')
         }
--   id: mac_address
-    label: MAC Address
-    dtype: string
 
 inputs:
 -   domain: stream
@@ -114,9 +111,9 @@ templates:
     imports: import dvbgse
     make: "dvbgse.bbheader_sink(${standard.val}, \n% if str(standard) == 'STANDARD_DVBT2':\n\
         ${framesize1.val}, \n% else:\n${framesize2.val}, \n% endif\n% if str(standard)\
-        \ == 'STANDARD_DVBT2':\n% if str(framesize1) == 'FECFRAME_NORMAL':\n${rate1.val},\
-        \ \n% else:\n${rate2.val}, \n% endif\n% else:\n% if str(framesize2) == 'FECFRAME_NORMAL':\n\
-        ${rate3.val}, \n% elif str(framesize2) == 'FECFRAME_MEDIUM':\n${rate4.val},\
-        \ \n% else:\n${rate5.val}, \n% endif\n% endif\n${mac_address})"
+        \ == 'STANDARD_DVBT2':\n% if str(framesize1) == 'FECFRAME_NORMAL':\n${rate1.val}\
+        \ \n% else:\n${rate2.val} \n% endif\n% else:\n% if str(framesize2) == 'FECFRAME_NORMAL':\n\
+        ${rate3.val} \n% elif str(framesize2) == 'FECFRAME_MEDIUM':\n${rate4.val}\
+        \ \n% else:\n${rate5.val} \n% endif\n% endif\n)"
 
 file_format: 1

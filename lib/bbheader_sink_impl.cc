@@ -32,23 +32,25 @@ namespace gr {
   namespace dvbgse {
 
     bbheader_sink::sptr
-    bbheader_sink::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, char *mac_address)
+    bbheader_sink::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate)
     {
       return gnuradio::get_initial_sptr
-        (new bbheader_sink_impl(standard, framesize, rate, mac_address));
+        (new bbheader_sink_impl(standard, framesize, rate));
     }
 
     /*
      * The private constructor
      */
-    bbheader_sink_impl::bbheader_sink_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, char *mac_address)
+    bbheader_sink_impl::bbheader_sink_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate)
       : gr::sync_block("bbheader_sink",
               gr::io_signature::make(1, 1, sizeof(unsigned char)),
               gr::io_signature::make(0, 0, 0))
     {
       struct ifreq ifr;
       int err;
-      int tmp[6];
+      int fdmac;
+      struct ifreq ifrmac;
+      unsigned char *mac;
       if (framesize == FECFRAME_NORMAL) {
         switch (rate) {
           case C1_4:
@@ -272,14 +274,17 @@ namespace gr {
         throw std::runtime_error("Error calling ioctl()\n");
       }
 
-      if (6 == sscanf(mac_address, "%x:%x:%x:%x:%x:%x%*c", &tmp[0], &tmp[1], &tmp[2], &tmp[3], &tmp[4], &tmp[5])) {
-        for (int i = 0; i < 6; i++) {
-          tap_mac_address[i] = (unsigned char)tmp[i];
-        }
+      fdmac = socket(AF_INET, SOCK_DGRAM, 0);
+      ifrmac.ifr_addr.sa_family = AF_INET;
+      strncpy(ifrmac.ifr_name , DEFAULT_IF , IFNAMSIZ-1);
+      ioctl(fdmac, SIOCGIFHWADDR, &ifrmac);
+      close(fdmac);
+
+      mac = (unsigned char *)ifrmac.ifr_hwaddr.sa_data;
+      for (int i = 0; i < 6; i++) {
+        tap_mac_address[i] = mac[i];
       }
-      else {
-        throw std::runtime_error("Error calling sscanf(), malformed MAC Address\n");
-      }
+
       set_output_multiple(kbch);
     }
 
