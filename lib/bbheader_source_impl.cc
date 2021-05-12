@@ -672,7 +672,6 @@ namespace gr {
       unsigned char *out = (unsigned char *) output_items[0];
       unsigned int offset = 0;
       unsigned int padding, bits, first_offset;
-      struct pcap_pkthdr hdr;
       struct ether_header *eptr;
       unsigned char *ptr;
       unsigned char total_length[2];
@@ -984,6 +983,9 @@ namespace gr {
         if (gse == TRUE) {
           gse = FALSE;
           dump_packet(&out[first_offset]);
+        }
+        else {
+          add_bbheader(&out[first_offset], count, padding - 1, TRUE);
         }
       }
 
