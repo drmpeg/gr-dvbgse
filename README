@@ -64,9 +64,6 @@ sudo ip link set tap0 up
 
 sudo ip link set tap0 arp off
 
-The MAC address must match the MAC address used in the flow graph
-(if you chose to use a different address).
-
 To forward packets received in the tap0 IP address range
 to the default network interface (replace eth0 with your
 default device name):
