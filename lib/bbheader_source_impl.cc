@@ -997,6 +997,9 @@ namespace gr {
           gse = FALSE;
           dump_packet(&out[first_offset]);
         }
+        else {
+          add_bbheader(&out[first_offset], count, padding - 1, TRUE);
+        }
       }
 
       // Tell runtime system how many output items we produced.
