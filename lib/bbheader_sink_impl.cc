@@ -413,6 +413,10 @@ namespace gr {
             end_indicator = *in++;
             label_type_indicator = *in++ << 1;
             label_type_indicator |= *in++;
+            if (start_indicator == 0 && end_indicator == 0 && label_type_indicator == 0) {
+              h->dfl = 0;
+              break;
+            }
             h->dfl -= 4;
             gse_length = 0;
             for (int n = 11; n >= 0; n--) {
@@ -543,7 +547,7 @@ namespace gr {
                 fprintf(stderr, "s=1, e=0, no buffer available = %d\n", frag_id);
                 for (unsigned int j = 0; j < gse_length; j++) {
                   h->dfl -= 8;
-                  index++;
+                  in += 8;
                 }
               }
             }
@@ -565,7 +569,7 @@ namespace gr {
                 fprintf(stderr, "s=0, e=0, no buffer available= %d\n", frag_id);
                 for (unsigned int j = 0; j < gse_length; j++) {
                   h->dfl -= 8;
-                  index++;
+                  in += 8;
                 }
               }
             }
@@ -613,7 +617,7 @@ namespace gr {
                 fprintf(stderr, "s=0, e=1, no buffer available = %d\n", frag_id);
                 for (unsigned int j = 0; j < gse_length; j++) {
                   h->dfl -= 8;
-                  index++;
+                  in += 8;
                 }
               }
             }
