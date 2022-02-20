@@ -103,6 +103,7 @@ namespace gr {
       inline void ping_reply(void);
       inline void ipaddr_spoof(void);
       inline void dump_packet(unsigned char *);
+      void handle_pcap_error(const std::string, pcap_t *, int);
 
      public:
       bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address);

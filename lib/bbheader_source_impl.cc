@@ -333,35 +333,35 @@ namespace gr {
         s << "Error calling pcap_create(): " << errbuf << std::endl;
         throw std::runtime_error(s.str());
       }
-      if (pcap_set_promisc(descr, 0) != 0) {
-        pcap_close(descr);
-        throw std::runtime_error("Error calling pcap_set_promisc()\n");
+      err = pcap_set_promisc(descr, 0);
+      if (err != 0) {
+        handle_pcap_error("pcap_set_promisc()", descr, err);
       }
-      if (pcap_set_timeout(descr, -1) != 0) {
-        pcap_close(descr);
-        throw std::runtime_error("Error calling pcap_set_timeout()\n");
+      err = pcap_set_timeout(descr, -1);
+      if (err != 0) {
+        handle_pcap_error("pcap_set_timeout()", descr, err);
       }
-      if (pcap_set_snaplen(descr, 65536) != 0) {
-        pcap_close(descr);
-        throw std::runtime_error("Error calling pcap_set_snaplen()\n");
+      err = pcap_set_snaplen(descr, 65536);
+      if (err != 0) {
+        handle_pcap_error("pcap_set_snaplen()", descr, err);
       }
-      if (pcap_set_buffer_size(descr, 1024 * 1024 * 16) != 0) {
-        pcap_close(descr);
-        throw std::runtime_error("Error calling pcap_set_buffer_size()\n");
+      err = pcap_set_buffer_size(descr, 1024 * 1024 * 16);
+      if (err != 0) {
+        handle_pcap_error("pcap_set_buffer_size()", descr, err);
       }
-      if (pcap_activate(descr) != 0) {
-        pcap_close(descr);
-        throw std::runtime_error("Error calling pcap_activate()\n");
+      err = pcap_activate(descr);
+      if (err != 0) {
+        handle_pcap_error("pcap_activate()", descr, err);
       }
       strcpy(filter, FILTER);
       strcat(filter, mac_address);
-      if (pcap_compile(descr, &fp, filter, 0, netp) == -1) {
-        pcap_close(descr);
-        throw std::runtime_error("Error calling pcap_compile()\n");
+      err = pcap_compile(descr, &fp, filter, 0, netp);
+      if (err == -1) {
+        handle_pcap_error("pcap_compile()", descr, err);
       }
-      if (pcap_setfilter(descr, &fp) == -1) {
-        pcap_close(descr);
-        throw std::runtime_error("Error calling pcap_setfilter()\n");
+      err = pcap_setfilter(descr, &fp);
+      if (err == -1) {
+        handle_pcap_error("pcap_setfilter()", descr, err);
       }
 
       set_output_multiple(kbch);
@@ -675,6 +675,70 @@ namespace gr {
       }
       printf("\n");
 #endif
+    }
+
+    void
+    bbheader_source_impl::handle_pcap_error(const std::string function_name, pcap_t *descr, int error_code)
+    {
+      std::string error_code_str = std::to_string(error_code);
+      std::string error_code_msg = "";
+
+      switch (error_code) {
+        case 1:
+          error_code_msg = "PCAP_WARNING";
+          break;
+        case 2:
+          error_code_msg = "PCAP_WARNING_PROMISC_NOTSUP";
+          break;
+        case 3:
+          error_code_msg = "PCAP_WARNING_TSTAMP_TYPE_NOTSUP";
+          break;
+        case -1:
+          error_code_msg = "PCAP_ERROR";
+          break;
+        case -2:
+          error_code_msg = "PCAP_ERROR_BREAK";
+          break;
+        case -3:
+          error_code_msg = "PCAP_ERROR_NOT_ACTIVATED";
+          break;
+        case -4:
+          error_code_msg = "PCAP_ERROR_ACTIVATED";
+          break;
+        case -5:
+          error_code_msg = "PCAP_ERROR_NO_SUCH_DEVICE";
+          break;
+        case -6:
+          error_code_msg = "PCAP_ERROR_RFMON_NOTSUP";
+          break;
+        case -7:
+          error_code_msg = "PCAP_ERROR_NOT_RFMON";
+          break;
+        case -8:
+          error_code_msg = "PCAP_ERROR_PERM_DENIED";
+          break;
+        case -9:
+          error_code_msg = "PCAP_ERROR_IFACE_NOT_UP";
+          break;
+        case -10:
+          error_code_msg = "PCAP_ERROR_CANTSET_TSTAMP_TYPE";
+          break;
+        case -11:
+          error_code_msg = "PCAP_ERROR_PROMISC_PERM_DENIED";
+          break;
+        case -12:
+          error_code_msg = "PCAP_ERROR_TSTAMP_PRECISION_NOTSUP";
+          break;
+        default:
+          error_code_msg = "invalid error code";
+          break;
+      }
+
+      pcap_close(descr);
+
+      throw std::runtime_error((std::string("Error calling ") + function_name \
+        + std::string("\npcap error code: ") + error_code_str \
+        + std::string("\npcap error msg: ") + error_code_msg).c_str());
     }
 
     int
