@@ -69,6 +69,7 @@ namespace gr {
       unsigned int count;
       unsigned char crc;
       unsigned int frame_size;
+      unsigned int padding_length;
       int inband_type_b;
       int fec_blocks;
       int fec_block;
@@ -106,7 +107,7 @@ namespace gr {
       void handle_pcap_error(const std::string, pcap_t *, int);
 
      public:
-      bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address);
+      bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, test_ping_reply_t ping_reply, test_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address, gse_padding_packet_t padding_len);
       ~bbheader_source_impl();
 
       int work(int noutput_items,

@@ -33,16 +33,16 @@ namespace gr {
   namespace dvbgse {
 
     bbheader_source::sptr
-    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address)
+    bbheader_source::make(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, test_ping_reply_t ping_reply, test_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address, gse_padding_packet_t padding_len)
     {
       return gnuradio::get_initial_sptr
-        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, ping_reply, ipaddr_spoof, src_address, dst_address));
+        (new bbheader_source_impl(standard, framesize, rate, rolloff, inband, fecblocks, tsrate, ping_reply, ipaddr_spoof, src_address, dst_address, padding_len));
     }
 
     /*
      * The private constructor
      */
-    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, dvbt2_ping_reply_t ping_reply, dvbt2_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address)
+    bbheader_source_impl::bbheader_source_impl(dvb_standard_t standard, dvb_framesize_t framesize, dvb_code_rate_t rate, dvbs2_rolloff_factor_t rolloff, dvbt2_inband_t inband, int fecblocks, int tsrate, test_ping_reply_t ping_reply, test_ipaddr_spoof_t ipaddr_spoof, char *src_address, char *dst_address, gse_padding_packet_t padding_len)
       : gr::sync_block("bbheader_source",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(unsigned char)))
@@ -65,6 +65,7 @@ namespace gr {
       alternate = TRUE;
       nibble = TRUE;
       frame_size = framesize;
+      padding_length = padding_len;
       ping_reply_mode = ping_reply;
       ipaddr_spoof_mode = ipaddr_spoof;
       inet_pton(AF_INET, src_address, &src_addr);
@@ -1062,7 +1063,9 @@ namespace gr {
           dump_packet(&out[first_offset]);
         }
         else {
-          add_bbheader(&out[first_offset], count, padding - 1, TRUE);
+          if (padding_length == PADDING_PACKET_LENGTH_1) {
+            add_bbheader(&out[first_offset], count, padding - 1, TRUE);
+          }
         }
       }
 

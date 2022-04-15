@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Free Software Foundation, Inc.
+ * Copyright 2022 Free Software Foundation, Inc.
  *
  * This file is part of GNU Radio
  *
@@ -14,7 +14,7 @@
 /* BINDTOOL_GEN_AUTOMATIC(0)                                                       */
 /* BINDTOOL_USE_PYGCCXML(0)                                                        */
 /* BINDTOOL_HEADER_FILE(bbheader_source.h)                                        */
-/* BINDTOOL_HEADER_FILE_HASH(46e489af422c2591ade336cb2603bc97)                     */
+/* BINDTOOL_HEADER_FILE_HASH(8d4cb9ffd681e83e2a59a7dc5d6bafa7)                     */
 /***********************************************************************************/
 
 #include <pybind11/complex.h>
@@ -48,6 +48,7 @@ void bind_bbheader_source(py::module& m)
            py::arg("ipaddr_spoof"),
            py::arg("src_address"),
            py::arg("dst_address"),
+           py::arg("padding_len"),
            D(bbheader_source,make)
         )
         
