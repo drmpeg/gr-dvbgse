@@ -9,7 +9,7 @@
 ########################################################################
 # Setup library
 ########################################################################
-include(GrPlatform) #define LIB_SUFFIX
+include(GNUInstallDirs)
 
 list(APPEND dvbgse_sources
     bbheader_source_impl.cc
@@ -26,7 +26,7 @@ add_library(gnuradio-dvbgse SHARED ${dvbgse_sources})
 target_link_libraries(gnuradio-dvbgse gnuradio::gnuradio-runtime ${PCAP_LIBRARIES})
 target_include_directories(gnuradio-dvbgse
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
-    PUBLIC $<INSTALL_INTERFACE:include>
+    PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 set_target_properties(gnuradio-dvbgse PROPERTIES DEFINE_SYMBOL "gnuradio_dvbgse_EXPORTS")
 
